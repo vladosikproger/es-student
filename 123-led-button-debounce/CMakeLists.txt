@@ -5,7 +5,7 @@ set(PICO_PLATFORM rp2040)
 
 include(pico_sdk_import.cmake)
 
-project(121_blink_reg)
+project(123-led-button-debounce)
 
 pico_sdk_init()
 
