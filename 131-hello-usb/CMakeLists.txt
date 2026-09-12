@@ -9,17 +9,19 @@ project(131_hello_usb)
 
 pico_sdk_init()
 
-add_executable(131_hello_usb
-   ${CMAKE_CURRENT_SOURCE_DIR}/main.c
+add_executable(${PROJECT_NAME}
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.c
 )
 
-target_link_libraries(131_hello_usb
-   pico_stdlib
+target_link_libraries(${PROJECT_NAME}
+    pico_stdlib
 )
 
-pico_set_linker_script(131_hello_usb
-   ${CMAKE_CURRENT_SOURCE_DIR}/memmap_rp2040.ld
+pico_set_linker_script(${PROJECT_NAME}
+    ${CMAKE_CURRENT_SOURCE_DIR}/memmap_rp2040.ld
 )
-pico_enable_stdio_usb(131_hello_usb 1)
-pico_enable_stdio_uart(131_hello_usb 0)
-pico_add_extra_outputs(131_hello_usb)
+
+pico_enable_stdio_usb(${PROJECT_NAME} 1)
+pico_enable_stdio_uart(${PROJECT_NAME} 0)
+
+pico_add_extra_outputs(${PROJECT_NAME})
