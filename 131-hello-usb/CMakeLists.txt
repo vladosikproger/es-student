@@ -1,3 +1,4 @@
+# Fixed to use PROJECT_NAME
 cmake_minimum_required(VERSION 3.15)
 
 set(PICO_BOARD pico)
