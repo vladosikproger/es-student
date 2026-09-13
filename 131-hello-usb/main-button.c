@@ -17,22 +17,30 @@ int main()
     gpio_pull_up(BUTTON_PIN);
     
     bool led_state = false;
-    bool button_was_pressed = false;
+    bool button_stable = true;
+    
+    printf("Ready\n");
+    fflush(stdout);
     
     while (1)
     {
-        bool button = !gpio_get(BUTTON_PIN);
+        bool reading = !gpio_get(BUTTON_PIN);
         
-        if (button && !button_was_pressed)
+        if (reading && button_stable)
         {
             led_state = !led_state;
             gpio_put(LED_PIN, led_state);
             printf("led %s\n", led_state ? "on" : "off");
             fflush(stdout);
+            
+            button_stable = false;
             sleep_ms(300);
         }
+        else if (!reading)
+        {
+            button_stable = true;
+        }
         
-        button_was_pressed = button;
-        sleep_ms(10);
+        sleep_ms(20);
     }
 }
