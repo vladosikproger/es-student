@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
 
-# Подключаем Pico SDK
+# ?????????? Pico SDK
 include(pico_sdk_import.cmake)
 
-# project() с тремя языками: C, C++, ASM — стандарт для Pico SDK
-project(134_led_module)
+project(134_led_module C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -25,6 +24,10 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 pico_add_extra_outputs(${PROJECT_NAME})
+
+pico_set_linker_script(${PROJECT_NAME}
+    ${CMAKE_CURRENT_SOURCE_DIR}/memmap_rp2040.ld
+)
 
 pico_enable_stdio_usb(${PROJECT_NAME} 1)
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
