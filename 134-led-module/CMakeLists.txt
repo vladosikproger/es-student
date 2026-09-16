@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-# ?????????? Pico SDK
+# Подключаем Pico SDK
 include(pico_sdk_import.cmake)
 
 project(134_led_module)
@@ -13,10 +13,12 @@ pico_sdk_init()
 add_executable(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/main.c
     ${CMAKE_CURRENT_SOURCE_DIR}/led/led.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/logging/log.c
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/led
+    ${CMAKE_CURRENT_SOURCE_DIR}/logging
 )
 
 target_link_libraries(${PROJECT_NAME}

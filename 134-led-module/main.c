@@ -1,6 +1,7 @@
 ﻿#include <stdio.h>
 #include "pico/stdlib.h"
 #include "led.h"
+#include "log.h"
 
 const uint BUTTON_PIN = 15;
 const uint DEBOUNCE_MS = 20;
@@ -20,19 +21,20 @@ void handle_command(int command)
     if (command == 'e')
     {
         led_set(true);
-        printf("led %s\n", led_is_on() ? "on" : "off");
-        fflush(stdout);
+        LOG_INF("led %s\n", led_is_on() ? "on" : "off");
     }
     else if (command == 'd')
     {
         led_set(false);
-        printf("led %s\n", led_is_on() ? "on" : "off");
-        fflush(stdout);
+        LOG_INF("led %s\n", led_is_on() ? "on" : "off");
+    }
+    else if (command == 'v')
+    {
+        log_version();
     }
     else
     {
-        printf("unknown command: %c\n", command);
-        fflush(stdout);
+        LOG_ERR("unknown command: %c\n", command);
     }
 }
 
@@ -42,6 +44,7 @@ int main()
     setbuf(stdout, NULL);
 
     led_init();
+    log_version();
 
     gpio_init(BUTTON_PIN);
     gpio_set_dir(BUTTON_PIN, GPIO_IN);
@@ -51,19 +54,16 @@ int main()
 
     while (1)
     {
-        // 1. Опрос кнопки
         bool current_state = get_button_debounce(BUTTON_PIN);
 
         if (previous_state == true && current_state == false)
         {
             led_toggle();
-            printf("led %s\n", led_is_on() ? "on" : "off");
-            fflush(stdout);
+            LOG_INF("led %s\n", led_is_on() ? "on" : "off");
         }
 
         previous_state = current_state;
 
-        // 2. Приём команды из USB
         int command = getchar_timeout_us(0);
 
         if (command == PICO_ERROR_TIMEOUT)
@@ -71,6 +71,7 @@ int main()
             continue;
         }
 
+        LOG_DBG("got %c\n", command);
         handle_command(command);
 
         sleep_ms(10);
