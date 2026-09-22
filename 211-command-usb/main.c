@@ -13,6 +13,81 @@ const uint DEBOUNCE_MS = 20;
 char line[LINE_SIZE];
 uint line_length = 0;
 
+// Тип обработчика команды: указатель на функцию без аргументов и без возврата
+typedef void (*command_handler_t)(void);
+
+// ------------------------------------------------------------
+// Функции-обработчики команд
+// ------------------------------------------------------------
+void cmd_enable(void)
+{
+    led_set(true);
+    LOG_INF("led %s\n", led_is_on() ? "on" : "off");
+}
+
+void cmd_disable(void)
+{
+    led_set(false);
+    LOG_INF("led %s\n", led_is_on() ? "on" : "off");
+}
+
+void cmd_info(void)
+{
+    device_info();
+}
+
+void cmd_version(void)
+{
+    log_version();
+}
+void cmd_ping(void)
+{
+    printf("pong\n");
+}
+
+// ------------------------------------------------------------
+// Таблица команд: имя + обработчик
+// ------------------------------------------------------------
+struct command_t
+{
+    const char *name;
+    command_handler_t handler;
+};
+
+const struct command_t commands[] = {
+    { "enable",  cmd_enable  },
+    { "disable", cmd_disable },
+    { "info",    cmd_info    },
+    { "version", cmd_version },
+    { "ping",    cmd_ping    },
+};
+
+#define COMMAND_COUNT (sizeof(commands) / sizeof(commands[0]))
+
+// ------------------------------------------------------------
+// Разбор команды: цикл по таблице
+// ------------------------------------------------------------
+void handle_command(const char *command)
+{
+    for (uint i = 0; i < COMMAND_COUNT; i++)
+    {
+        if (strcmp(command, commands[i].name) == 0)
+        {
+            if (commands[i].handler != NULL)
+            {
+                commands[i].handler();
+            }
+
+            return;
+        }
+    }
+
+    LOG_ERR("unknown command: %s\n", command);
+}
+
+// ------------------------------------------------------------
+// Дебаунс кнопки
+// ------------------------------------------------------------
 bool get_button_debounce(uint pin)
 {
     bool state1 = gpio_get(pin);
@@ -21,32 +96,9 @@ bool get_button_debounce(uint pin)
     return (state1 == state2) ? state1 : state2;
 }
 
-void handle_command(const char *command)
-{
-    if (strcmp(command, "enable") == 0)
-    {
-        led_set(true);
-        LOG_INF("led %s\n", led_is_on() ? "on" : "off");
-    }
-    else if (strcmp(command, "disable") == 0)
-    {
-        led_set(false);
-        LOG_INF("led %s\n", led_is_on() ? "on" : "off");
-    }
-    else if (strcmp(command, "version") == 0)
-    {
-        log_version();
-    }
-    else if (strcmp(command, "info") == 0)
-    {
-        device_info();
-    }
-    else
-    {
-        LOG_ERR("unknown command: %s\n", command);
-    }
-}
-
+// ------------------------------------------------------------
+// Приём строки из USB
+// ------------------------------------------------------------
 void read_line(void)
 {
     int symbol = getchar_timeout_us(0);
@@ -79,6 +131,9 @@ void read_line(void)
     }
 }
 
+// ------------------------------------------------------------
+// Точка входа
+// ------------------------------------------------------------
 int main()
 {
     stdio_init_all();
