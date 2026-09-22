@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-# Р СџР С•Р Т‘Р С”Р В»РЎР‹РЎвЂЎР В°Р ВµР С Pico SDK
+# Р В Р’В Р РЋРЎСџР В Р’В Р РЋРІР‚СћР В Р’В Р СћРІР‚ВР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’В»Р В Р Р‹Р В РІР‚в„–Р В Р Р‹Р Р†Р вЂљР Р‹Р В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’ВµР В Р’В Р РЋР’В Pico SDK
 include(pico_sdk_import.cmake)
 
 project(211_command_usb)
@@ -15,12 +15,14 @@ add_executable(${PROJECT_NAME}
     ${CMAKE_CURRENT_SOURCE_DIR}/led/led.c
     ${CMAKE_CURRENT_SOURCE_DIR}/logging/log.c
     ${CMAKE_CURRENT_SOURCE_DIR}/device/device.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/memory/memory.c
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/led
     ${CMAKE_CURRENT_SOURCE_DIR}/logging
     ${CMAKE_CURRENT_SOURCE_DIR}/device
+    ${CMAKE_CURRENT_SOURCE_DIR}/memory
 )
 
 target_link_libraries(${PROJECT_NAME}
