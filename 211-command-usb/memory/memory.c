@@ -90,15 +90,15 @@ void fw_info(void)
 
     printf("%-16s %-11s %s\n", "object", "address", "value");
 
-    uintptr_t main_addr = (uintptr_t)main & ~(uintptr_t)1u;
-    uint16_t *main_code = (uint16_t *)main_addr;
+        uintptr_t main_thumb = (uintptr_t)main;
+    uint16_t *main_code = (uint16_t *)(main_thumb & ~1u);
     printf("%-16s 0x%08x  0x%04x\n",
-           "main", (unsigned)main_addr, (unsigned)*main_code);
+           "main", (unsigned)main_thumb, (unsigned)*main_code);
 
-    uintptr_t fw_addr = (uintptr_t)fw_info & ~(uintptr_t)1u;
-    uint16_t *fw_code = (uint16_t *)fw_addr;
+    uintptr_t fw_thumb = (uintptr_t)fw_info;
+    uint16_t *fw_code = (uint16_t *)(fw_thumb & ~1u);
     printf("%-16s 0x%08x  0x%04x\n",
-           "fw_info", (unsigned)fw_addr, (unsigned)*fw_code);
+           "fw_info", (unsigned)fw_thumb, (unsigned)*fw_code);
 
     printf("%-16s 0x%08x\n",
            "commands", (unsigned)(uintptr_t)commands);
