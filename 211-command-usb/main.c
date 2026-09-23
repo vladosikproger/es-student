@@ -5,6 +5,7 @@
 #include "log.h"
 #include "device.h"
 #include "memory.h"
+#include "command.h"
 
 const uint BUTTON_PIN = 15;
 const uint DEBOUNCE_MS = 20;
@@ -14,12 +15,6 @@ const uint DEBOUNCE_MS = 20;
 char line[LINE_SIZE];
 uint line_length = 0;
 
-// Тип обработчика команды: указатель на функцию без аргументов и без возврата
-typedef void (*command_handler_t)(void);
-
-// ------------------------------------------------------------
-// Функции-обработчики команд
-// ------------------------------------------------------------
 void cmd_enable(void)
 {
     led_set(true);
@@ -41,6 +36,7 @@ void cmd_version(void)
 {
     log_version();
 }
+
 void cmd_ping(void)
 {
     printf("pong\n");
@@ -51,14 +47,10 @@ void cmd_mem_info(void)
     mem_info();
 }
 
-// ------------------------------------------------------------
-// Таблица команд: имя + обработчик
-// ------------------------------------------------------------
-struct command_t
+void cmd_fw_info(void)
 {
-    const char *name;
-    command_handler_t handler;
-};
+    fw_info();
+}
 
 const struct command_t commands[] = {
     { "enable",  cmd_enable  },
@@ -67,16 +59,14 @@ const struct command_t commands[] = {
     { "version", cmd_version },
     { "ping",    cmd_ping    },
     { "mem_info", cmd_mem_info },
+    { "fw_info",  cmd_fw_info  },
 };
 
-#define COMMAND_COUNT (sizeof(commands) / sizeof(commands[0]))
+const uint command_count = sizeof(commands) / sizeof(commands[0]);
 
-// ------------------------------------------------------------
-// Разбор команды: цикл по таблице
-// ------------------------------------------------------------
 void handle_command(const char *command)
 {
-    for (uint i = 0; i < COMMAND_COUNT; i++)
+    for (uint i = 0; i < command_count; i++)
     {
         if (strcmp(command, commands[i].name) == 0)
         {
@@ -84,17 +74,12 @@ void handle_command(const char *command)
             {
                 commands[i].handler();
             }
-
             return;
         }
     }
-
     LOG_ERR("unknown command: %s\n", command);
 }
 
-// ------------------------------------------------------------
-// Дебаунс кнопки
-// ------------------------------------------------------------
 bool get_button_debounce(uint pin)
 {
     bool state1 = gpio_get(pin);
@@ -103,9 +88,6 @@ bool get_button_debounce(uint pin)
     return (state1 == state2) ? state1 : state2;
 }
 
-// ------------------------------------------------------------
-// Приём строки из USB
-// ------------------------------------------------------------
 void read_line(void)
 {
     int symbol = getchar_timeout_us(0);
@@ -138,9 +120,6 @@ void read_line(void)
     }
 }
 
-// ------------------------------------------------------------
-// Точка входа
-// ------------------------------------------------------------
 int main()
 {
     stdio_init_all();
