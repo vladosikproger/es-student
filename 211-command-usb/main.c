@@ -26,7 +26,10 @@ void cmd_disable(void)
     led_set(false);
     LOG_INF("led %s\n", led_is_on() ? "on" : "off");
 }
-
+void cmd_dev_info(void)
+{
+    dev_info();
+}
 void cmd_info(void)
 {
     device_info();
@@ -60,7 +63,7 @@ const struct command_t commands[] = {
     { "ping",    cmd_ping    },
     { "mem_info", cmd_mem_info },
     { "fw_info",  cmd_fw_info  },
-    {"dev_info", dev_info},
+    {"dev_info", cmd_dev_info},
 };
 
 const uint command_count = sizeof(commands) / sizeof(commands[0]);
