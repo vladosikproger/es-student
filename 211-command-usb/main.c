@@ -60,6 +60,7 @@ const struct command_t commands[] = {
     { "ping",    cmd_ping    },
     { "mem_info", cmd_mem_info },
     { "fw_info",  cmd_fw_info  },
+    {"dev_info", dev_info},
 };
 
 const uint command_count = sizeof(commands) / sizeof(commands[0]);
