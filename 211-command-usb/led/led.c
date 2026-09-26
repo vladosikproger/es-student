@@ -4,7 +4,10 @@
 static const uint LED_PIN = 25;
 
 static bool led_state = false;
-
+uint led_pin(void)
+{
+    return LED_PIN; // Верни свою константу, которая уже объявлена в этом файле
+}
 void led_init(void)
 {
     gpio_init(LED_PIN);

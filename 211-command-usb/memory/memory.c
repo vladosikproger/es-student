@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-
+#include "led.h"            // Чтобы видеть функцию led_pin()
+#include "hardware/gpio.h"  // Чтобы видеть функцию gpio_get()
 int main(void);
 
 extern char __flash_binary_start;
@@ -24,6 +25,9 @@ extern char __StackTop;
 
 #define SRAM_SIZE_BYTES (264 * 1024)
 #define ROM_SIZE_BYTES  (16 * 1024)
+
+// Адрес таблицы векторов из документации RP2040
+#define VECTOR_TABLE 0x10000100
 
 static uint32_t data_variable = 100;
 static uint32_t bss_variable;
@@ -140,4 +144,31 @@ void fw_info(void)
     {
         printf("%-16s malloc failed\n", "heap_variable");
     }
+}
+
+void boot_info(void)
+{
+    // --- 1. Таблица векторов (из прошлого шага) ---
+    const uint32_t *vectors = (const uint32_t *)VECTOR_TABLE;
+    uint32_t stack_top = vectors[0];
+    uint32_t reset_handler = vectors[1];
+
+    // --- 2. Чтение регистра GPIO_IN ---
+    // Адрес регистра из документации RP2040
+    #define GPIO_IN_REG 0xd0000004
+    
+    // Превращаем число в указатель на изменяемое железо (volatile)
+    volatile uint32_t *gpio_in = (volatile uint32_t *)GPIO_IN_REG;
+    
+    // Сдвигаем на номер пина и отрезаем лишнее маской
+    uint32_t led_bit = (*gpio_in >> led_pin()) & 1u;
+
+    // --- 3. Вывод строго по формату из задания ---
+    printf("vector table   0x%08x\n", VECTOR_TABLE);
+    printf("  stack top    0x%08x\n", stack_top);
+    printf("  reset        0x%08x\n", reset_handler);
+    printf("  reset (even) 0x%08x\n", reset_handler & ~1u);
+    printf("gpio in        0x%08x\n", GPIO_IN_REG);
+    printf("  led bit      %u\n", led_bit);
+    printf("  gpio_get     %d\n", gpio_get(led_pin()));
 }

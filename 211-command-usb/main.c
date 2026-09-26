@@ -14,7 +14,10 @@ const uint DEBOUNCE_MS = 20;
 
 char line[LINE_SIZE];
 uint line_length = 0;
-
+void cmd_boot_info(void)
+{
+    boot_info();
+}
 void cmd_enable(void)
 {
     led_set(true);
@@ -64,6 +67,7 @@ const struct command_t commands[] = {
     { "mem_info", cmd_mem_info },
     { "fw_info",  cmd_fw_info  },
     {"dev_info", cmd_dev_info},
+    {"boot_info", cmd_boot_info},
 };
 
 const uint command_count = sizeof(commands) / sizeof(commands[0]);
