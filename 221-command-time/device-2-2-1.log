@@ -3,24 +3,24 @@
 устройство: 2e8a:000a
 серийный номер: 5303284730B4A41C
 порт: COM3
-начало: 2026-10-02T21:42:05
+начало: 2026-10-02T21:46:36
    0.000 --> clk_info
-   0.242 <-- clk_info
-   0.242 <-- dbg read_line:121 got clk_info
-   0.244 <-- clock    configured     measured
-   0.244 <-- clk_ref      12000        12001
-   0.244 <-- clk_sys     125000       125000
-   0.247 <-- clk_peri    125000       125000
-   0.248 <-- clk_usb      48000        48000
-   0.248 <-- clk_adc      48000        48000
-   0.249 <-- ROSC             -         5780
-   2.090 --> info
-   2.229 <-- info
-   2.230 <-- dbg read_line:121 got info
-   2.231 <-- project: 221-command-time
-   2.231 <-- repo: es-student
-   2.232 <-- board: pico
-   2.232 <-- serial: 5303284730B4A41C
-   2.233 <-- chip: manufacturer 0x927, part 0x0002, revision 2
-   2.233 <-- pico-sdk: 2.3.0
+   0.261 <-- clk_info
+   0.262 <-- dbg read_line:121 got clk_info
+   0.262 <-- clock    configured     measured
+   0.263 <-- clk_ref      12000        12001
+   0.264 <-- clk_sys     125000       125000
+   0.265 <-- clk_peri    125000       125000
+   0.266 <-- clk_usb      48000        48000
+   0.267 <-- clk_adc      48000        48000
+   0.268 <-- rosc             -         5784
+   2.099 --> info
+   2.249 <-- info
+   2.250 <-- dbg read_line:121 got info
+   2.250 <-- project: 221-command-time
+   2.250 <-- repo: es-student
+   2.251 <-- board: pico
+   2.251 <-- serial: 5303284730B4A41C
+   2.251 <-- chip: manufacturer 0x927, part 0x0002, revision 2
+   2.252 <-- pico-sdk: 2.3.0
 итог: отправлено команд 2, принято строк 17

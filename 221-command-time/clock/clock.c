@@ -29,5 +29,5 @@ void clk_info(void)
     // 3. Аномалия (ROSC)
     // Обрати внимание на %9s вместо %9u, чтобы передать прочерк как строку
     uint32_t rosc_meas = frequency_count_khz(CLOCKS_FC0_SRC_VALUE_ROSC_CLKSRC);
-    printf("%-8s %9s %12u\n", "ROSC", "-", (unsigned)rosc_meas);
+    printf("%-8s %9s %12u\n", "rosc", "-", (unsigned)rosc_meas);
 }
