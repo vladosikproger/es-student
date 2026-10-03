@@ -13,6 +13,52 @@
 char line[LINE_SIZE];
 uint line_length = 0;
 
+// прикидка: за член ряда 4 операции с double, 175 + 110 + 190 + 110 = 585 тактов;
+// 1 000 000 членов по 585 тактов при 125 МГц — около 4,7 с
+const uint CALC_PI_TERMS = 1000000;
+
+double calc_pi(uint terms)
+{
+    // sum - аккумулятор, в котором будет копиться результат
+    double sum = 0.0;
+    
+    // sign - знак текущего члена ряда (чередуется: 1, -1, 1, -1)
+    double sign = 1.0;
+
+    for (uint k = 0; k < terms; k++)
+    {
+        // 1. Вычисляем знаменатель: (2 * k + 1). Для k=0 это 1, для k=1 это 3 и т.д.
+        // 2. Делим знак на знаменатель и прибавляем к сумме
+        sum += sign / (2.0 * k + 1.0);
+        
+        // 3. Инвертируем знак для следующего шага цикла (плюс меняется на минус)
+        sign = -sign;
+    }
+
+    // Ряд Лейбница дает пи/4, поэтому в конце мы обязаны умножить сумму на 4
+    return sum * 4.0;
+}
+
+// Глобальная переменная с защитой от оптимизатора
+volatile double pi_result;
+
+void cmd_calc_pi(void)
+{
+    // 1. Делаем "снимок" стартового времени
+    uint64_t start_us = time_us_64();
+    
+    // 2. Сбрасываем нашу "математическую наковальню" на процессор
+    pi_result = calc_pi(CALC_PI_TERMS);
+    
+    // 3. Делаем "снимок" финального времени и вычисляем разницу
+    uint64_t spent_us = time_us_64() - start_us;
+
+    // Выводим результат. %.8f означает 8 знаков после запятой.
+    printf("pi: %.8f\n", pi_result);
+    // Делим микросекунды на 1000, чтобы показать миллисекунды
+    printf("time: %llu ms\n", spent_us / 1000);
+}
+
 void cmd_clk_info(void) { clk_info(); }
 void cmd_boot_info(void) { boot_info(); }
 void cmd_dev_info(void) { dev_info(); }
@@ -33,13 +79,13 @@ const struct command_t commands[] = {
     { "boot_info", cmd_boot_info },
     { "clk_info",  cmd_clk_info  },
     { "uptime",    cmd_uptime    },
+    { "calc_pi",   cmd_calc_pi   },
 };
 
 const uint command_count = sizeof(commands) / sizeof(commands[0]);
 
 void handle_command(const char *command)
 {
-    // ... внутренности handle_command остаются без изменений ...
     for (uint i = 0; i < command_count; i++)
     {
         if (strcmp(command, commands[i].name) == 0)
@@ -56,7 +102,6 @@ void handle_command(const char *command)
 
 void read_line(void)
 {
-    // ... внутренности read_line остаются без изменений ...
     int symbol = getchar_timeout_us(0);
 
     if (symbol == PICO_ERROR_TIMEOUT) { return; }
