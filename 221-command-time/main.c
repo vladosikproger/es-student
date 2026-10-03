@@ -8,78 +8,38 @@
 #include "command.h"
 #include "clock.h"
 
-const uint BUTTON_PIN = 15;
-const uint DEBOUNCE_MS = 20;
-
 #define LINE_SIZE 32
 
 char line[LINE_SIZE];
 uint line_length = 0;
-void cmd_clk_info(void)
-{
-    clk_info();
-}
-void cmd_boot_info(void)
-{
-    boot_info();
-}
-void cmd_enable(void)
-{
-    led_set(true);
-    LOG_INF("led %s\n", led_is_on() ? "on" : "off");
-}
 
-void cmd_disable(void)
-{
-    led_set(false);
-    LOG_INF("led %s\n", led_is_on() ? "on" : "off");
-}
-void cmd_dev_info(void)
-{
-    dev_info();
-}
-void cmd_info(void)
-{
-    device_info();
-}
-
-void cmd_version(void)
-{
-    log_version();
-}
-
-void cmd_ping(void)
-{
-    printf("pong\n");
-}
-
-void cmd_mem_info(void)
-{
-    mem_info();
-}
-
-void cmd_fw_info(void)
-{
-    fw_info();
-}
+void cmd_clk_info(void) { clk_info(); }
+void cmd_boot_info(void) { boot_info(); }
+void cmd_dev_info(void) { dev_info(); }
+void cmd_info(void) { device_info(); }
+void cmd_version(void) { log_version(); }
+void cmd_ping(void) { printf("pong\n"); }
+void cmd_mem_info(void) { mem_info(); }
+void cmd_fw_info(void) { fw_info(); }
+void cmd_uptime(void) { uptime(); }
 
 const struct command_t commands[] = {
-    { "enable",  cmd_enable  },
-    { "disable", cmd_disable },
-    { "info",    cmd_info    },
-    { "version", cmd_version },
-    { "ping",    cmd_ping    },
-    { "mem_info", cmd_mem_info },
-    { "fw_info",  cmd_fw_info  },
-    {"dev_info", cmd_dev_info},
-    {"boot_info", cmd_boot_info},
-    {"clk_info", cmd_clk_info},
+    { "info",      cmd_info      },
+    { "version",   cmd_version   },
+    { "ping",      cmd_ping      },
+    { "mem_info",  cmd_mem_info  },
+    { "fw_info",   cmd_fw_info   },
+    { "dev_info",  cmd_dev_info  },
+    { "boot_info", cmd_boot_info },
+    { "clk_info",  cmd_clk_info  },
+    { "uptime",    cmd_uptime    },
 };
 
 const uint command_count = sizeof(commands) / sizeof(commands[0]);
 
 void handle_command(const char *command)
 {
+    // ... внутренности handle_command остаются без изменений ...
     for (uint i = 0; i < command_count; i++)
     {
         if (strcmp(command, commands[i].name) == 0)
@@ -94,34 +54,22 @@ void handle_command(const char *command)
     LOG_ERR("unknown command: %s\n", command);
 }
 
-bool get_button_debounce(uint pin)
-{
-    bool state1 = gpio_get(pin);
-    sleep_ms(DEBOUNCE_MS);
-    bool state2 = gpio_get(pin);
-    return (state1 == state2) ? state1 : state2;
-}
-
 void read_line(void)
 {
+    // ... внутренности read_line остаются без изменений ...
     int symbol = getchar_timeout_us(0);
 
-    if (symbol == PICO_ERROR_TIMEOUT)
-    {
-        return;
-    }
+    if (symbol == PICO_ERROR_TIMEOUT) { return; }
 
     if (symbol == '\r' || symbol == '\n')
     {
         putchar('\n');
         line[line_length] = '\0';
-
         if (line_length > 0)
         {
             LOG_DBG("got %s\n", line);
             handle_command(line);
         }
-
         line_length = 0;
         return;
     }
@@ -134,7 +82,27 @@ void read_line(void)
     }
 }
 
-int main()
+// -------------------------------------------------------------
+// НОВЫЙ БЛОК: Изолированная логика мигания
+// -------------------------------------------------------------
+const uint BLINK_HALF_PERIOD_MS = 500;
+uint64_t last_toggle_us = 0;
+
+void blink(void)
+{
+    uint64_t now_us = time_us_64();
+
+    if (now_us - last_toggle_us >= BLINK_HALF_PERIOD_MS * 1000)
+    {
+        last_toggle_us = now_us;
+        led_toggle();
+    }
+}
+
+// -------------------------------------------------------------
+// ТОЧКА ВХОДА
+// -------------------------------------------------------------
+int main(void)
 {
     stdio_init_all();
     setbuf(stdout, NULL);
@@ -142,26 +110,10 @@ int main()
     led_init();
     log_version();
 
-    gpio_init(BUTTON_PIN);
-    gpio_set_dir(BUTTON_PIN, GPIO_IN);
-    gpio_pull_up(BUTTON_PIN);
-
-    bool previous_state = true;
-
+    // Идеально чистый суперцикл: только делегирование задач
     while (1)
     {
-        bool current_state = get_button_debounce(BUTTON_PIN);
-
-        if (previous_state == true && current_state == false)
-        {
-            led_toggle();
-            LOG_INF("led %s\n", led_is_on() ? "on" : "off");
-        }
-
-        previous_state = current_state;
-
+        blink();
         read_line();
-
-        sleep_ms(10);
     }
 }
