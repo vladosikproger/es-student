@@ -3,9 +3,12 @@
 #include "profiling.h"
 #include "stdio-text-protocol.h"
 #include "api.h"
-// 1. Подключаем контракт нашей новой задачи
+
+// 1. Подключаем контракты наших задач
 #include "led-task.h"
 #include "button-task.h"
+#include "pi-task.h" // ДОБАВЛЕНО: подключаем новый калькулятор
+
 int main(void)
 {
     stdio_init_all();
@@ -14,18 +17,22 @@ int main(void)
     
     stdio_text_protocol_init();
     
-    // 2. Инициализируем автомат светодиода (настраиваем ножки)
+    // 2. Подготовка к работе (делается один раз при включении в розетку)
     led_task_init(); 
     button_task_init();
+    pi_task_init(); // ДОБАВЛЕНО: говорим калькулятору подготовить переменные
 
+    // 3. Бесконечный суперцикл (процессор крутится здесь миллионы раз в секунду)
     while (1)
     {
         profiling_iteration();
         
-        // 3. Выделяем процессорное время нашей задаче каждый такт суперцикла
+        // По очереди даем микрофон каждой задаче
         led_task_handle();
         button_task_handle();
-        // 4. Опрос терминала (ввод команд)
+        pi_task_handle(); // ДОБАВЛЕНО: калькулятор считает свои 100 шагов и выходит
+        
+        // Опрос терминала (ввод команд)
         const command_t *command = stdio_text_protocol_handle();
         if (command != NULL)
         {
