@@ -17,5 +17,12 @@ uint32_t led_task_get_period_ms(void);
 
 // ДОБАВИТЬ ВОТ ЭТУ СТРОКУ:
 led_state_t led_task_get_state(void);
+// ... старый код контракта ...
+uint32_t led_task_get_period_ms(void);
+led_state_t led_task_get_state(void);
 
+// НОВАЯ СТРОКА:
+void led_task_next_state(void);
+
+void led_task_handle(void);
 void led_task_handle(void);

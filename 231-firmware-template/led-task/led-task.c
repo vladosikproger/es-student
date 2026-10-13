@@ -93,3 +93,25 @@ led_state_t led_task_get_state(void)
 {
     return current_state;
 }
+// Функция переключения состояния по кругу
+void led_task_next_state(void)
+{
+    // Смотрим, в каком состоянии светодиод находится прямо сейчас
+    switch (current_state)
+    {
+        case LED_STATE_OFF:
+            // Если он выключен, следующая ступень — включить
+            led_task_set_state(LED_STATE_ON);
+            break;
+            
+        case LED_STATE_ON:
+            // Если он просто горит, следующая ступень — мигать
+            led_task_set_state(LED_STATE_BLINK);
+            break;
+            
+        case LED_STATE_BLINK:
+            // Если он мигает, круг замыкается — выключаем
+            led_task_set_state(LED_STATE_OFF);
+            break;
+    }
+}

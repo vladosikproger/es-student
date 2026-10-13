@@ -5,7 +5,7 @@
 #include "api.h"
 // 1. Подключаем контракт нашей новой задачи
 #include "led-task.h"
-
+#include "button-task.h"
 int main(void)
 {
     stdio_init_all();
@@ -16,6 +16,7 @@ int main(void)
     
     // 2. Инициализируем автомат светодиода (настраиваем ножки)
     led_task_init(); 
+    button_task_init();
 
     while (1)
     {
@@ -23,7 +24,7 @@ int main(void)
         
         // 3. Выделяем процессорное время нашей задаче каждый такт суперцикла
         led_task_handle();
-        
+        button_task_handle();
         // 4. Опрос терминала (ввод команд)
         const command_t *command = stdio_text_protocol_handle();
         if (command != NULL)
