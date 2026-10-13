@@ -4,7 +4,12 @@
 
 #define BUTTON_PIN 15 // ЗАМЕНИ НА СВОЙ ПИН КНОПКИ
 const uint64_t DEBOUNCE_TIME_US = 20000; // Время дребезга: 20 мс = 20 000 мкс
-
+typedef enum {
+    BUTTON_STATE_RELEASED,   // Стабильно отпущена
+    BUTTON_STATE_PRESSING,   // Переходный процесс: возможно нажатие, ждем 20 мс
+    BUTTON_STATE_PRESSED,    // Стабильно нажата
+    BUTTON_STATE_RELEASING   // Переходный процесс: возможно отпускание, ждем 20 мс
+} button_state_t;
 // Скрытая память задачи
 static button_state_t button_state;
 static uint64_t transition_start_time_us;
