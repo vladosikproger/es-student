@@ -1,59 +1,102 @@
 #include "profiling.h"
 #include "pico/stdlib.h"
+#include <stddef.h> // Для константы NULL
 
-// итерация около 2 мкс, за секунду их около 500 000;
-// ближайшая степень двойки 2^19 = 524 288, среднее помнит около секунды
-#define AVG_SHIFT 19
+// Скрытая структура памяти для одного секундомера. 
+// Про неё знает только этот файл, снаружи она недоступна (инкапсуляция).
+typedef struct {
+    const char *name;      // Указатель на строку с именем. Если NULL — секундомер свободен.
+    uint64_t start_time_us;// Время последнего запуска (считается аппаратно)
+    uint32_t sum_us;       // Накопленная сумма всех длительностей
+    uint32_t count;        // Счетчик вызовов
+    uint32_t max_us;       // Худшее время
+} stopwatch_t;
 
-// замер в 1/256 долях микросекунды, чтобы среднее не теряло дробную часть
-#define FRACTION_SHIFT 8
+// Создаем физический массив из 8 таких структур. 
+// Ключевое слово static прячет этот массив от других файлов.
+static stopwatch_t stopwatches[PROFILING_MAX_STOPWATCHES];
 
-static uint32_t previous_us = 0;
-static uint32_t max_us = 0;
-static uint64_t avg_sum = 0;
-
-void profiling_init(void)
+void profiling_stopwatch_init(uint32_t id, const char *name)
 {
-    previous_us = time_us_32();
-}
-
-void profiling_iteration(void)
-{
-    // 1. Читаем аппаратные часы
-    uint32_t now_us = time_us_32();
-    
-    // 2. Вычисляем длительность текущей итерации
-    uint32_t iteration_us = now_us - previous_us;
-    previous_us = now_us;
-
-    // 3. Обновляем максимальное значение
-    if (iteration_us > max_us)
-    {
-        max_us = iteration_us;
+    // Защита от дурака: если попросили инициализировать секундомер №10, а их всего 8 — выходим.
+    if (id >= PROFILING_MAX_STOPWATCHES) {
+        return;
     }
 
-    // 4. Обновляем среднее за 1 такт, без float и без знака деления
-    // (uint64_t) защищает от переполнения при умножении на 256
-    avg_sum = avg_sum - (avg_sum >> AVG_SHIFT) + ((uint64_t)iteration_us << FRACTION_SHIFT);
+    // Обращаемся к ячейке массива под номером id и обнуляем все стартовые значения
+    stopwatches[id].name = name;
+    stopwatches[id].start_time_us = 0;
+    stopwatches[id].sum_us = 0;
+    stopwatches[id].count = 0;
+    stopwatches[id].max_us = 0;
 }
 
-// ------------------------------------------------------------------
-// Функции выдачи результатов (Геттеры)
-// ------------------------------------------------------------------
-
-float profiling_avg_us(void)
+void profiling_start(uint32_t id)
 {
-    // Здесь float допустим: эта функция вызывается только человеком через терминал.
-    // Мы делим аккумулятор на N (>> AVG_SHIFT) и переводим обратно из 1/256 долей в микросекунды (1 << FRACTION_SHIFT).
-    return (float)(avg_sum >> AVG_SHIFT) / (1 << FRACTION_SHIFT);
+    // Если вышли за границы массива или секундомер не инициализирован (name == NULL) — ничего не делаем.
+    if (id >= PROFILING_MAX_STOPWATCHES || stopwatches[id].name == NULL) {
+        return;
+    }
+
+    // Запрашиваем текущее время у аппаратного таймера кристалла и сохраняем в память секундомера.
+    stopwatches[id].start_time_us = time_us_64();
 }
 
-uint32_t profiling_max_us(void)
+void profiling_stop(uint32_t id)
 {
-    return max_us;
+    if (id >= PROFILING_MAX_STOPWATCHES || stopwatches[id].name == NULL) {
+        return;
+    }
+
+    // 1. Узнаем текущее время
+    uint64_t now_us = time_us_64();
+    
+    // 2. Вычисляем дельту (сколько прошло с момента profiling_start)
+    // Приводим результат к 32 битам, так как задачи у нас короткие.
+    uint32_t elapsed_us = (uint32_t)(now_us - stopwatches[id].start_time_us);
+
+    // 3. Добавляем дельту в общую копилку времени и увеличиваем счетчик вызовов
+    stopwatches[id].sum_us += elapsed_us;
+    stopwatches[id].count++;
+
+    // 4. Если текущий вызов занял больше времени, чем прошлый рекорд — обновляем максимум
+    if (elapsed_us > stopwatches[id].max_us) {
+        stopwatches[id].max_us = elapsed_us;
+    }
 }
 
-void profiling_reset_max(void)
+bool profiling_get(uint32_t id, profiling_result_t *result)
 {
-    max_us = 0;
+    if (id >= PROFILING_MAX_STOPWATCHES || stopwatches[id].name == NULL) {
+        return false; // Сообщаем вызывающей функции, что такого секундомера нет
+    }
+
+    // Копируем данные из нашего скрытого массива во внешнюю структуру result (переданную по указателю)
+    result->name = stopwatches[id].name;
+    result->count = stopwatches[id].count;
+    result->max_us = stopwatches[id].max_us;
+
+    // Вычисляем среднее арифметическое. 
+    // Защита от деления на ноль (если count == 0).
+    if (stopwatches[id].count > 0) {
+        // Принудительно превращаем целые числа в числа с плавающей точкой (double) перед делением,
+        // чтобы получить точный результат с дробной частью (например, 9.96 мкс).
+        result->mean_us = (double)stopwatches[id].sum_us / (double)stopwatches[id].count;
+    } else {
+        result->mean_us = 0.0;
+    }
+
+    return true; // Данные успешно скопированы
+}
+
+void profiling_reset(void)
+{
+    // Циклом пробегаем по всему массиву от 0 до 7
+    for (uint32_t i = 0; i < PROFILING_MAX_STOPWATCHES; i++) {
+        // Обнуляем математику
+        stopwatches[i].sum_us = 0;
+        stopwatches[i].count = 0;
+        stopwatches[i].max_us = 0;
+        // ВАЖНО: поле name мы не трогаем! Секундомеры сбрасываются, но не удаляются.
+    }
 }

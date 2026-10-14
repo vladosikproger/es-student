@@ -1,12 +1,7 @@
 #include "log.h"
-#include "device.h"
+#include <stdio.h> // Требуется для printf
 
-void log_version(void)
-{
-    // Заменили DEVICE_NAME на PROJECT_NAME
-    printf("device: %s %s, built %s %s, log level %d\n",
-           PROJECT_NAME, FIRMWARE_VERSION, __DATE__, __TIME__, LOG_LEVEL);
-}
+// Функцию log_version() мы полностью удалили. Журнал больше не привязан к железу.
 
 void log_prefix(const char *level, const char *function, int line)
 {

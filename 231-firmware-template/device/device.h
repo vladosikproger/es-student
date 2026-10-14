@@ -1,17 +1,23 @@
-#ifndef DEVICE_H
-#define DEVICE_H
-
+#pragma once
 #include <stdint.h>
 
-// Макросы вшиваются компилятором прямо в секцию .rodata (только для чтения), не тратя SRAM
-#define PROJECT_NAME "231-firmware-template"
-#define FIRMWARE_NAME "best" // Твое название
-#define FIRMWARE_VERSION "1.0.0" 
+// Константы прошивки
+#define DEVICE_NAME "my-pico-device"
+#define PROJECT_NAME DEVICE_NAME
+#define FIRMWARE_VERSION "0.1.0"
 
-// Оставляем только нужные константы для вывода
-#define DEVICE_BOARD "pico"
+// Длина строки серийного номера (16 символов + 1 нулевой байт)
+#define DEVICE_SERIAL_STR_LEN 17
 
-// Единственная функция, которая нам нужна для работы с железом
-void device_info(void);
+// Структура паспорта прибора
+typedef struct {
+    const char *board_type;
+    char serial[DEVICE_SERIAL_STR_LEN];
+    uint16_t manufacturer;
+    uint16_t part;
+    uint8_t revision;
+    const char *sdk_version;
+} device_info_t;
 
-#endif
+// Прототип функции
+void device_get_info(device_info_t *info);
