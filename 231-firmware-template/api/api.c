@@ -1,4 +1,4 @@
-#include "api.h"
+﻿#include "api.h"
 #include "pico/stdlib.h"
 #include <stdio.h>
 #include <string.h>
@@ -9,7 +9,7 @@
 #include "firmware.h"
 #include "device/device.h"
 #include "profiling/profiling.h"
-#include "systime/systime.h" // <-- ВОТ НАШ ПРОВОД К ДИСПЕТЧЕРУ ВРЕМЕНИ!
+#include "systime/systime.h" // <-- Р’РћРў РќРђРЁ РџР РћР’РћР” Рљ Р”РРЎРџР•РўР§Р•Р РЈ Р’Р Р•РњР•РќР!
 
 typedef struct {
     const char *name;
@@ -28,7 +28,7 @@ static bool parse_u32(const char *text, uint32_t *out_value)
     return true;
 }
 
-// --- КОМАНДА INFO ---
+// --- РљРћРњРђРќР”Рђ INFO ---
 static void cmd_info(const command_t *cmd)
 {
     device_info_t info;
@@ -46,11 +46,11 @@ static void cmd_info(const command_t *cmd)
 
 static void cmd_uptime(const command_t *cmd)
 {
-    // Теперь компилятор знает, что systime_ms возвращает огромное 64-битное число
+    // РўРµРїРµСЂСЊ РєРѕРјРїРёР»СЏС‚РѕСЂ Р·РЅР°РµС‚, С‡С‚Рѕ systime_ms РІРѕР·РІСЂР°С‰Р°РµС‚ РѕРіСЂРѕРјРЅРѕРµ 64-Р±РёС‚РЅРѕРµ С‡РёСЃР»Рѕ
     printf("uptime: %llu ms\n", systime_ms());
 }
 
-// --- КОМАНДЫ ПРОФИЛИРОВАНИЯ ---
+// --- РљРћРњРђРќР”Р« РџР РћР¤РР›РР РћР’РђРќРРЇ ---
 static void cmd_profiling(const command_t *cmd)
 {
 #if !PROFILING_ENABLED
@@ -77,7 +77,7 @@ static void cmd_profiling_reset(const command_t *cmd)
     printf("profiling: reset\n");
 }
 
-// --- ОСТАЛЬНЫЕ КОМАНДЫ ---
+// --- РћРЎРўРђР›Р¬РќР«Р• РљРћРњРђРќР”Р« ---
 static void cmd_pi_start(const command_t *cmd)
 {
     uint32_t terms = 1000000;
@@ -149,7 +149,7 @@ static void cmd_button(const command_t *cmd)
     printf("button: %s, presses %lu\n", state_str, (unsigned long)count);
 }
 
-// --- ТАБЛИЦА КОМАНД ---
+// --- РўРђР‘Р›РР¦Рђ РљРћРњРђРќР” ---
 static const api_command_t commands[] = {
     { "info",            "Print device info",                  cmd_info },
     { "uptime",          "Print system uptime in ms",          cmd_uptime },

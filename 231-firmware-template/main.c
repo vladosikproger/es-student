@@ -1,4 +1,4 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 #include "pico/stdlib.h"
 
 #include "firmware.h"
@@ -6,7 +6,7 @@
 #include "logging/log.h"
 #include "profiling/profiling.h"
 
-#include "stdio-text-protocol.h"
+#include "stdio-text-protocol/stdio-text-protocol.h"
 #include "api.h"
 #include "led-task.h"
 #include "button-task.h"
@@ -32,9 +32,9 @@ int main() {
     uint32_t STOPWATCH_BUTTON = profiling_allocate("button");
     uint32_t STOPWATCH_PI     = profiling_allocate("pi");
 
-    // Трюк для подавления предупреждений unused-variable.
-    // Это инструкция "вхолостую". Она успокаивает строгий компилятор, 
-    // но физически не создает никаких команд в памяти микроконтроллера.
+    // РўСЂСЋРє РґР»СЏ РїРѕРґР°РІР»РµРЅРёСЏ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёР№ unused-variable.
+    // Р­С‚Рѕ РёРЅСЃС‚СЂСѓРєС†РёСЏ "РІС…РѕР»РѕСЃС‚СѓСЋ". РћРЅР° СѓСЃРїРѕРєР°РёРІР°РµС‚ СЃС‚СЂРѕРіРёР№ РєРѕРјРїРёР»СЏС‚РѕСЂ, 
+    // РЅРѕ С„РёР·РёС‡РµСЃРєРё РЅРµ СЃРѕР·РґР°РµС‚ РЅРёРєР°РєРёС… РєРѕРјР°РЅРґ РІ РїР°РјСЏС‚Рё РјРёРєСЂРѕРєРѕРЅС‚СЂРѕР»Р»РµСЂР°.
     (void)STOPWATCH_LOOP;
     (void)STOPWATCH_API;
     (void)STOPWATCH_LED;
