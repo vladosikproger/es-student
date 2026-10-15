@@ -1,78 +1,69 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 
-// Подключаем модули для стартового сообщения
-#include "device.h" 
-#include "log.h" 
+#include "firmware.h"
+#include "device/device.h"
+#include "logging/log.h"
+#include "profiling/profiling.h"
 
-#include "profiling.h"
 #include "stdio-text-protocol.h"
 #include "api.h"
 #include "led-task.h"
 #include "button-task.h"
 #include "pi-task.h"
 
-// Создаем перечисляемый тип для наших 5 секундомеров
-typedef enum {
-    STOPWATCH_LOOP,
-    STOPWATCH_COMMAND,
-    STOPWATCH_LED,
-    STOPWATCH_BUTTON,
-    STOPWATCH_PI
-} stopwatch_id_t;
-
-int main(void)
-{
+int main() {
     stdio_init_all();
-    setbuf(stdout, NULL);
     
-    // 1. Выводим строку журнала при запуске (то, что мы убрали из log.c)
-    // Макрос LOG_INF сам подставит метку [INF]
-    LOG_INF("%s %s\n", DEVICE_NAME, FIRMWARE_VERSION);
-    
-    // 2. Инициализируем 5 секундомеров (даем им имена)
-    profiling_stopwatch_init(STOPWATCH_LOOP,    "loop");
-    profiling_stopwatch_init(STOPWATCH_COMMAND, "command");
-    profiling_stopwatch_init(STOPWATCH_LED,     "led");
-    profiling_stopwatch_init(STOPWATCH_BUTTON,  "button");
-    profiling_stopwatch_init(STOPWATCH_PI,      "pi");
+    device_info_t info;
+    device_get_info(&info);
+    LOG_INF("%s %s\n", FIRMWARE_NAME, FIRMWARE_VERSION);
 
     stdio_text_protocol_init();
-    led_task_init(); 
+    led_task_init();
     button_task_init();
     pi_task_init();
+    
+    profiling_init();
 
-    // 3. Бесконечный суперцикл
-    while (1)
-    {
-        // Начинаем замер времени всей итерации суперцикла
+    uint32_t STOPWATCH_LOOP   = profiling_allocate("loop");
+    uint32_t STOPWATCH_API    = profiling_allocate("api");
+    uint32_t STOPWATCH_LED    = profiling_allocate("led");
+    uint32_t STOPWATCH_BUTTON = profiling_allocate("button");
+    uint32_t STOPWATCH_PI     = profiling_allocate("pi");
+
+    // Трюк для подавления предупреждений unused-variable.
+    // Это инструкция "вхолостую". Она успокаивает строгий компилятор, 
+    // но физически не создает никаких команд в памяти микроконтроллера.
+    (void)STOPWATCH_LOOP;
+    (void)STOPWATCH_API;
+    (void)STOPWATCH_LED;
+    (void)STOPWATCH_BUTTON;
+    (void)STOPWATCH_PI;
+
+    while (true) {
         profiling_start(STOPWATCH_LOOP);
-        
-        // --- ЗАДАЧА КОМАНД ---
-        profiling_start(STOPWATCH_COMMAND);
+
+        profiling_start(STOPWATCH_API);
         const command_t *command = stdio_text_protocol_handle();
-        if (command != NULL)
-        {
+        if (command != NULL) { 
             api_handle(command);
         }
-        profiling_stop(STOPWATCH_COMMAND);
+        profiling_stop(STOPWATCH_API);
 
-        // --- ЗАДАЧА СВЕТОДИОДА ---
         profiling_start(STOPWATCH_LED);
         led_task_handle();
         profiling_stop(STOPWATCH_LED);
-        
-        // --- ЗАДАЧА КНОПКИ ---
+
         profiling_start(STOPWATCH_BUTTON);
         button_task_handle();
         profiling_stop(STOPWATCH_BUTTON);
 
-        // --- ЗАДАЧА РАСЧЕТА ПИ ---
         profiling_start(STOPWATCH_PI);
         pi_task_handle();
         profiling_stop(STOPWATCH_PI);
-        
-        // Останавливаем замер времени всей итерации суперцикла
+
         profiling_stop(STOPWATCH_LOOP);
     }
+    return 0;
 }

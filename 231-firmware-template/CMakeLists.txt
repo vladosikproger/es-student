@@ -1,32 +1,33 @@
 cmake_minimum_required(VERSION 3.13)
-
-# Р В Р’В Р РЋРЎСџР В Р’В Р РЋРІР‚СћР В Р’В Р СћРІР‚ВР В Р’В Р РЋРІР‚СњР В Р’В Р вЂ™Р’В»Р В Р Р‹Р В РІР‚в„–Р В Р Р‹Р Р†Р вЂљР Р‹Р В Р’В Р вЂ™Р’В°Р В Р’В Р вЂ™Р’ВµР В Р’В Р РЋР’В Pico SDK
 include(pico_sdk_import.cmake)
 
-project(231_firmware_template)
-
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
-
+project(231_firmware_template C CXX ASM)
 pico_sdk_init()
+
+# ПУНКТ 4: Строку add_compile_options(-Wall) ставим ДО add_subdirectory
 add_compile_options(-Wall)
-add_executable(${PROJECT_NAME}
-    ${CMAKE_CURRENT_SOURCE_DIR}/main.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/logging/log.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/device/device.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/profiling/profiling.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/stdio-text-protocol/stdio-text-protocol.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/api/api.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/led-task/led-task.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/button-task/button-task.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/pi-task/pi-task.c
+
+# ПУНКТ 4: libs лежит вне папки проекта: второй аргумент задаёт каталог сборки
+add_subdirectory(../libs ${CMAKE_BINARY_DIR}/libs)
+
+# ПУНКТ 5: Рубильник профилирования (1 - включено, 0 - выключено)
+target_compile_definitions(profiling PUBLIC
+    PROFILING_ENABLED=0
 )
 
+# Список файлов главной программы
+add_executable(${PROJECT_NAME}
+    main.c
+    api/api.c
+    stdio-text-protocol/stdio-text-protocol.c
+    led-task/led-task.c
+    button-task/button-task.c
+    pi-task/pi-task.c
+)
+
+# Пути поиска заголовков внутри самого проекта
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/logging
-    ${CMAKE_CURRENT_SOURCE_DIR}/device
-    ${CMAKE_CURRENT_SOURCE_DIR}/profiling
     ${CMAKE_CURRENT_SOURCE_DIR}/stdio-text-protocol
     ${CMAKE_CURRENT_SOURCE_DIR}/api
     ${CMAKE_CURRENT_SOURCE_DIR}/led-task
@@ -34,16 +35,16 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/pi-task
 )
 
-target_link_libraries(${PROJECT_NAME}
+# ПУНКТ 4: Библиотеки подключаются по именам
+target_link_libraries(${PROJECT_NAME} PRIVATE
     pico_stdlib
-    pico_unique_id
+    device
+    logging
+    profiling
+    systime
 )
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-    DEVICE_BOARD="${PICO_BOARD}"
-)
 
-pico_add_extra_outputs(${PROJECT_NAME})
-
-
+# Стандартные настройки платформы Raspberry Pi Pico
 pico_enable_stdio_usb(${PROJECT_NAME} 1)
 pico_enable_stdio_uart(${PROJECT_NAME} 0)
+pico_add_extra_outputs(${PROJECT_NAME})

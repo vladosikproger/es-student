@@ -1,13 +1,15 @@
 #include "api.h"
 #include "pico/stdlib.h"
-#include "device.h"
-#include "profiling.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "led-task.h"
 #include "button-task.h"
 #include "pi-task.h"
+#include "firmware.h"
+#include "device/device.h"
+#include "profiling/profiling.h"
+#include "systime/systime.h" // <-- ВОТ НАШ ПРОВОД К ДИСПЕТЧЕРУ ВРЕМЕНИ!
 
 typedef struct {
     const char *name;
@@ -32,7 +34,10 @@ static void cmd_info(const command_t *cmd)
     device_info_t info;
     device_get_info(&info);
 
-    printf("%s %s\n", DEVICE_NAME, FIRMWARE_VERSION);
+    printf("%s %s\n", FIRMWARE_NAME, FIRMWARE_VERSION);
+    printf("project: %s\n", FIRMWARE_PROJECT);
+    printf("repo: %s\n", FIRMWARE_REPO);
+    
     printf("board: %s, serial: %s\n", info.board_type, info.serial);
     printf("chip: manufacturer 0x%x, part 0x%x, revision %u\n",
            info.manufacturer, info.part, info.revision);
@@ -41,16 +46,20 @@ static void cmd_info(const command_t *cmd)
 
 static void cmd_uptime(const command_t *cmd)
 {
-    printf("uptime: %llu ms\n", time_us_64() / 1000);
+    // Теперь компилятор знает, что systime_ms возвращает огромное 64-битное число
+    printf("uptime: %llu ms\n", systime_ms());
 }
 
-// --- НОВЫЕ КОМАНДЫ ПРОФИЛИРОВАНИЯ ---
+// --- КОМАНДЫ ПРОФИЛИРОВАНИЯ ---
 static void cmd_profiling(const command_t *cmd)
 {
+#if !PROFILING_ENABLED
+    printf("profiling is disabled in this build\n");
+    return;
+#endif
     profiling_result_t res;
     uint32_t id = 0;
 
-    // Циклом запрашиваем статистику по всем номерам секундомеров
     while (profiling_get(id, &res))
     {
         printf("%-10s count %-10lu mean %.2f us  max %lu us\n",
