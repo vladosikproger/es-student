@@ -12,6 +12,16 @@
 #include "button-task.h"
 #include "pi-task.h"
 
+// Требуемый тестом 2.3.5 перечисляемый тип с номерами секундомеров
+typedef enum {
+    STOPWATCH_LOOP,
+    STOPWATCH_API,
+    STOPWATCH_LED,
+    STOPWATCH_BUTTON,
+    STOPWATCH_PI,
+    STOPWATCH_COUNT
+} stopwatch_id_t;
+
 int main() {
     stdio_init_all();
     
@@ -26,20 +36,12 @@ int main() {
     
     profiling_init();
 
-    uint32_t STOPWATCH_LOOP   = profiling_allocate("loop");
-    uint32_t STOPWATCH_API    = profiling_allocate("api");
-    uint32_t STOPWATCH_LED    = profiling_allocate("led");
-    uint32_t STOPWATCH_BUTTON = profiling_allocate("button");
-    uint32_t STOPWATCH_PI     = profiling_allocate("pi");
-
-    // РўСЂСЋРє РґР»СЏ РїРѕРґР°РІР»РµРЅРёСЏ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёР№ unused-variable.
-    // Р­С‚Рѕ РёРЅСЃС‚СЂСѓРєС†РёСЏ "РІС…РѕР»РѕСЃС‚СѓСЋ". РћРЅР° СѓСЃРїРѕРєР°РёРІР°РµС‚ СЃС‚СЂРѕРіРёР№ РєРѕРјРїРёР»СЏС‚РѕСЂ, 
-    // РЅРѕ С„РёР·РёС‡РµСЃРєРё РЅРµ СЃРѕР·РґР°РµС‚ РЅРёРєР°РєРёС… РєРѕРјР°РЅРґ РІ РїР°РјСЏС‚Рё РјРёРєСЂРѕРєРѕРЅС‚СЂРѕР»Р»РµСЂР°.
-    (void)STOPWATCH_LOOP;
-    (void)STOPWATCH_API;
-    (void)STOPWATCH_LED;
-    (void)STOPWATCH_BUTTON;
-    (void)STOPWATCH_PI;
+    // Инициализация секундомеров, которую ожидает тест 2.3.5
+    profiling_stopwatch_init(STOPWATCH_LOOP,   "loop");
+    profiling_stopwatch_init(STOPWATCH_API,    "api");
+    profiling_stopwatch_init(STOPWATCH_LED,    "led");
+    profiling_stopwatch_init(STOPWATCH_BUTTON, "button");
+    profiling_stopwatch_init(STOPWATCH_PI,     "pi");
 
     while (true) {
         profiling_start(STOPWATCH_LOOP);

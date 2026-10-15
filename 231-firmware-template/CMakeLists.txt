@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 include(pico_sdk_import.cmake)
 
-project(231_firmware_template C CXX ASM)
+project(231_firmware_template)
 pico_sdk_init()
 
 add_compile_options(-Wall)
