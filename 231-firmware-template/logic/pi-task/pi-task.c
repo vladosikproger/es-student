@@ -1,6 +1,5 @@
-#include "pi-task.h"
-#include "profiling/profiling.h"
-#include "systime/systime.h" // Подключаем независимого диспетчера времени
+#include "pi-task/pi-task.h"
+#include "systime/systime.h"
 
 #define PI_TERMS_PER_CALL 100 
 

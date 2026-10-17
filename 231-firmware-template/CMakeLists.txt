@@ -6,40 +6,62 @@ pico_sdk_init()
 
 add_compile_options(-Wall)
 
-# Подключаем внешнюю папку с библиотеками
+# Общие библиотеки курса
 add_subdirectory(../libs ${CMAKE_BINARY_DIR}/libs)
 
-# Выключатель профилирования (1 - включено, 0 - выключено)
+# Выключатель профилирования
 target_compile_definitions(profiling PUBLIC
     PROFILING_ENABLED=0
 )
 
-# Список файлов главной программы (остались только задачи самого прибора!)
-add_executable(${PROJECT_NAME}
-    main.c
-    api/api.c
-    led-task/led-task.c
-    button-task/button-task.c
-    pi-task/pi-task.c
+# Железо прибора: единственное место проекта с SDK
+add_library(platform STATIC
+    platform/platform.c
 )
 
-# Пути поиска заголовков внутри самого проекта
-target_include_directories(${PROJECT_NAME} PRIVATE
+target_include_directories(platform PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/api
-    ${CMAKE_CURRENT_SOURCE_DIR}/led-task
-    ${CMAKE_CURRENT_SOURCE_DIR}/button-task
-    ${CMAKE_CURRENT_SOURCE_DIR}/pi-task
 )
 
-# Подключаем все 5 библиотек по именам
-target_link_libraries(${PROJECT_NAME} PRIVATE
+target_link_libraries(platform PRIVATE
     pico_stdlib
+)
+
+# Логика прибора: задачи и команды, без SDK
+add_library(logic STATIC
+    logic/api/api.c
+    logic/api/api-callbacks.c
+    logic/led-task/led-task.c
+    logic/button-task/button-task.c
+    logic/pi-task/pi-task.c
+)
+
+target_include_directories(logic PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/logic
+)
+
+target_link_libraries(logic PUBLIC
+    stdio_text_protocol
+)
+
+target_link_libraries(logic PRIVATE
+    platform
     device
-    logging
     profiling
     systime
-    stdio-text-protocol
+)
+
+# Главная программа
+add_executable(${PROJECT_NAME}
+    main.c
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    pico_stdlib
+    platform
+    logic
+    logging
+    profiling
 )
 
 pico_enable_stdio_usb(${PROJECT_NAME} 1)
