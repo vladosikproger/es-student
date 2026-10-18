@@ -5,13 +5,21 @@
 
 #include "platform/platform.h"
 
-// Задача сообщает о подтверждённом нажатии через переданный callback.
+// A callback reports a recognised button event. The button task does not
+// know what the event means for the device.
 typedef void (*button_task_callback_t)(void);
 
-// Инициализирует одну кнопку и назначает действие для её нажатия.
-void button_task_init(platform_button_t button, button_task_callback_t on_press);
+// Initialise one button. If on_long_press is not NULL, on_press is treated as
+// the short-press action and is called only after a stable release. The long
+// callback is called once after the button has been held for one second.
+// If on_long_press is NULL, on_press is called as soon as the press is debounced.
+void button_task_init(
+    platform_button_t button,
+    button_task_callback_t on_press,
+    button_task_callback_t on_long_press
+);
 
-// Обрабатывает все кнопки платы; вызывается в каждой итерации суперцикла.
+// Processes every button. Call once during each superloop iteration.
 void button_task_handle(void);
 
 bool button_task_is_pressed(platform_button_t button);
