@@ -9,9 +9,10 @@ add_compile_options(-Wall)
 # Общие библиотеки курса
 add_subdirectory(../libs ${CMAKE_BINARY_DIR}/libs)
 
-# Выключатель профилирования
+# Профилирование включено в основной сборке приёмки.
+# Для отдельной проверочной сборки достаточно заменить 1 на 0.
 target_compile_definitions(profiling PUBLIC
-    PROFILING_ENABLED=0
+    PROFILING_ENABLED=1
 )
 
 # Железо прибора: единственное место проекта с SDK

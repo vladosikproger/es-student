@@ -1,4 +1,4 @@
-﻿#include "api/api.h"
+#include "api/api.h"
 #include "api/api-commands.h"
 
 #include <stdint.h>
@@ -14,7 +14,7 @@ void api_handle(const command_t *command)
 
     if (strcmp(command->name, "help") == 0)
     {
-        printf("help\n");
+        printf("%-16s %s\n", "help", "list of commands");
 
         for (uint32_t i = 0; i < api_command_count; i++)
         {

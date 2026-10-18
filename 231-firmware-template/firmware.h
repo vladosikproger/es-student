@@ -1,7 +1,7 @@
 #pragma once
 
-// Константы теперь называются с префиксом FIRMWARE_
+// Идентификация прошивки для команды info.
 #define FIRMWARE_NAME    "my-pico-device"
-#define FIRMWARE_PROJECT "es-student-231"
+#define FIRMWARE_PROJECT "231-firmware-template"
 #define FIRMWARE_VERSION "0.1.0"
-#define FIRMWARE_REPO    "https://github.com/your_username/es-student"
+#define FIRMWARE_REPO    "https://github.com/vladosikproger/es-student"

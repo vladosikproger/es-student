@@ -17,19 +17,27 @@
 #include "systime/systime.h"
 static bool parse_u32(const char *text, uint32_t *out_value)
 {
-    if (text == NULL || text[0] == '\0' || text[0] == '-')
+    if (text == NULL || text[0] == '\0' || out_value == NULL)
     {
         return false;
     }
 
-    char *endptr;
-    errno = 0;
+    // По ТЗ допускается только десятичная запись из цифр 0--9.
+    // strtoul() сам по себе принимает ведущий знак '+', поэтому до вызова
+    // strtoul() отдельно проверяем каждый символ.
+    for (const char *p = text; *p != '\0'; ++p)
+    {
+        if (*p < '0' || *p > '9')
+        {
+            return false;
+        }
+    }
 
+    char *endptr = NULL;
+    errno = 0;
     unsigned long value = strtoul(text, &endptr, 10);
 
-    if (errno == ERANGE
-        || endptr == text
-        || *endptr != '\0'
+    if (errno == ERANGE || endptr == text || *endptr != '\0'
         || value > UINT32_MAX)
     {
         return false;
@@ -46,18 +54,17 @@ static void cmd_info(const command_t *cmd)
     device_info_t info;
     device_get_info(&info);
 
-    printf("%s %s\n", FIRMWARE_NAME, FIRMWARE_VERSION);
+    printf("name: %s\n", FIRMWARE_NAME);
+    printf("version: %s\n", FIRMWARE_VERSION);
     printf("project: %s\n", FIRMWARE_PROJECT);
     printf("repo: %s\n", FIRMWARE_REPO);
-
-    printf("board: %s, serial: %s\n", info.board_type, info.serial);
-
-    printf("chip: manufacturer 0x%x, part 0x%x, revision %u\n",
+    printf("board: %s\n", info.board_type);
+    printf("serial: %s\n", info.serial);
+    printf("chip: manufacturer 0x%03x, part 0x%04x, revision %u\n",
            (unsigned)info.manufacturer,
            (unsigned)info.part,
            (unsigned)info.revision);
-
-    printf("sdk: %s\n", info.sdk_version);
+    printf("pico-sdk: %s\n", info.sdk_version);
 }
 
 static void cmd_uptime(const command_t *cmd)
@@ -96,7 +103,7 @@ static void cmd_profiling_reset(const command_t *cmd)
     (void)cmd;
 
     profiling_reset();
-    printf("profiling: reset\n");
+    printf("profiling reset\n");
 }
 
 static void cmd_pi_start(const command_t *cmd)
@@ -119,7 +126,7 @@ static void cmd_pi_start(const command_t *cmd)
 
         if (terms == 0)
         {
-            printf("error: terms must be strictly positive\n");
+            printf("error: terms must be greater than 0\n");
             return;
         }
     }
@@ -218,7 +225,7 @@ static void cmd_led_period(const command_t *cmd)
 
     if (!led_task_set_period_ms(period))
     {
-        printf("error: period must be strictly positive\n");
+        printf("error: period_ms must be greater than 0\n");
         return;
     }
 
@@ -241,17 +248,17 @@ static void cmd_button(const command_t *cmd)
 
 const api_command_t api_commands[] =
 {
-    { "info",            "Print device info",                  cmd_info },
-    { "uptime",          "Print system uptime in ms",          cmd_uptime },
-    { "pi_start",        "Start Pi calculation",               cmd_pi_start },
-    { "pi",              "Get Pi status or result",             cmd_pi },
-    { "profiling",       "Print profiling statistics",         cmd_profiling },
-    { "profiling_reset", "Reset profiling statistics",          cmd_profiling_reset },
-    { "led_enable",      "Turn LED on",                        cmd_led_enable },
-    { "led_disable",     "Turn LED off",                       cmd_led_disable },
-    { "led_blink",       "Blink LED",                          cmd_led_blink },
-    { "led_period",      "Set LED blink period in ms",          cmd_led_period },
-    { "button",          "Print button state and press count",   cmd_button }
+    { "info",            "device passport",                 cmd_info },
+    { "uptime",          "system uptime in ms",             cmd_uptime },
+    { "pi_start",        "start Pi calculation",            cmd_pi_start },
+    { "pi",              "get Pi status or result",         cmd_pi },
+    { "profiling",       "print profiling statistics",      cmd_profiling },
+    { "profiling_reset", "reset profiling statistics",      cmd_profiling_reset },
+    { "led_enable",      "turn LED on",                     cmd_led_enable },
+    { "led_disable",     "turn LED off",                    cmd_led_disable },
+    { "led_blink",       "blink LED",                       cmd_led_blink },
+    { "led_period",      "set LED blink period in ms",      cmd_led_period },
+    { "button",          "button state and press count",    cmd_button }
 };
 
 const uint32_t api_command_count =
