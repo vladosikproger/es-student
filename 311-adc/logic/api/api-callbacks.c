@@ -254,6 +254,13 @@ static void cmd_get_voltage(const command_t *cmd)
     printf("voltage: %.3f V\n", platform_voltage_read());
 }
 
+static void cmd_get_temp(const command_t *cmd)
+{
+    (void)cmd;
+
+    printf("temp: %.1f C\n", platform_temp_read());
+}
+
 const api_command_t api_commands[] =
 {
     { "info",            "device passport",                 cmd_info },
@@ -264,6 +271,7 @@ const api_command_t api_commands[] =
     { "led_period",      "set LED blink period in ms",      cmd_led_period },
     { "button",          "button state and press count",    cmd_button },
     { "get_voltage",     "voltage on GP26, ADC input 0",     cmd_get_voltage },
+    { "get_temp",        "chip temperature, degrees Celsius", cmd_get_temp },
     { "pi_start",        "start Pi calculation",            cmd_pi_start },
     { "pi",              "get Pi status or result",         cmd_pi },
     { "profiling",       "print profiling statistics",      cmd_profiling },
