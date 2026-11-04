@@ -239,14 +239,35 @@ static void cmd_button(const command_t *cmd)
 {
     (void)cmd;
 
-    const char *state_str =
-        button_task_is_pressed() ? "pressed" : "released";
+    const char *state_1 = button_task_is_pressed(PLATFORM_BUTTON_1)
+        ? "pressed" : "released";
+    const char *state_2 = button_task_is_pressed(PLATFORM_BUTTON_2)
+        ? "pressed" : "released";
 
-    uint32_t count = button_task_get_press_count();
-
+    // Первая строка сохраняет прежний формат ответа для GP15.
     printf("button: %s, presses %lu\n",
-           state_str,
-           (unsigned long)count);
+           state_1,
+           (unsigned long)button_task_get_press_count(PLATFORM_BUTTON_1));
+    // Вторая строка показывает состояние и счётчик кнопки GP14.
+    printf("button2: %s, presses %lu\n",
+           state_2,
+           (unsigned long)button_task_get_press_count(PLATFORM_BUTTON_2));
+}
+
+static void cmd_charge_on(const command_t *cmd)
+{
+    (void)cmd;
+
+    platform_charge_set(true);
+    printf("charge: on\n");
+}
+
+static void cmd_charge_off(const command_t *cmd)
+{
+    (void)cmd;
+
+    platform_charge_set(false);
+    printf("charge: off\n");
 }
 
 static void cmd_get_voltage(const command_t *cmd)
@@ -324,6 +345,8 @@ const api_command_t api_commands[] =
     { "button",          "button state and press count",    cmd_button },
     { "get_voltage",     "voltage on GP26, ADC input 0",     cmd_get_voltage },
     { "get_temp",        "chip temperature, degrees Celsius", cmd_get_temp },
+    { "charge_on",       "set GP22 high; charge RC capacitor", cmd_charge_on },
+    { "charge_off",      "set GP22 low; discharge RC capacitor", cmd_charge_off },
     { "tm_start",        "start telemetry stream [period_ms]", cmd_tm_start },
     { "tm_stop",         "stop telemetry stream",             cmd_tm_stop },
     { "pi_start",        "start Pi calculation",            cmd_pi_start },

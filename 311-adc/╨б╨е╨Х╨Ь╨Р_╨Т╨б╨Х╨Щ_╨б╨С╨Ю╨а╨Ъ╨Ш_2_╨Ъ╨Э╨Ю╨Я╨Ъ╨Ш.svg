@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="760" viewBox="0 0 1000 760">
+  <rect width="1000" height="760" fill="#f7f8fa"/>
+  <text x="500" y="38" font-family="Arial" font-size="27" font-weight="bold" text-anchor="middle" fill="#18212b">п3.1.5 — полная сборка: Pico + RC + две кнопки</text>
+  <text x="500" y="66" font-family="Arial" font-size="15" text-anchor="middle" fill="#4b5563">USB сверху · Pico через центральную канавку · GP15 и GP14 остаются кнопочными входами</text>
+  <rect x="110" y="92" width="780" height="625" rx="22" fill="#fff" stroke="#aeb8c3" stroke-width="3"/>
+  <rect x="483" y="100" width="34" height="605" fill="#e7eaee"/>
+  <text x="500" y="113" font-family="Arial" font-size="11" text-anchor="middle" fill="#667085">канавка</text>
+  <g font-family="Arial" font-size="13" fill="#475467" text-anchor="middle">
+    <text x="190" y="145">A</text><text x="250" y="145">B</text><text x="310" y="145">C</text><text x="370" y="145">D</text><text x="430" y="145">E</text>
+    <text x="570" y="145">F</text><text x="630" y="145">G</text><text x="690" y="145">H</text><text x="750" y="145">I</text><text x="810" y="145">J</text>
+  </g>
+  <!-- row guides every second row -->
+  <g stroke="#e8edf2" stroke-width="1">
+    <path d="M145 165 H465 M535 165 H855 M145 199 H465 M535 199 H855 M145 233 H465 M535 233 H855 M145 267 H465 M535 267 H855 M145 301 H465 M535 301 H855 M145 335 H465 M535 335 H855 M145 369 H465 M535 369 H855 M145 403 H465 M535 403 H855 M145 437 H465 M535 437 H855 M145 471 H465 M535 471 H855 M145 505 H465 M535 505 H855 M145 539 H465 M535 539 H855 M145 573 H465 M535 573 H855 M145 607 H465 M535 607 H855 M145 641 H465 M535 641 H855 M145 675 H465 M535 675 H855"/>
+  </g>
+  <g font-family="Arial" font-size="10" fill="#667085" text-anchor="middle">
+    <text x="130" y="169">1</text><text x="130" y="237">5</text><text x="130" y="305">9</text><text x="130" y="373">13</text><text x="130" y="441">17</text><text x="130" y="509">21</text><text x="130" y="577">25</text><text x="130" y="645">29</text>
+  </g>
+  <!-- Pico body spans rows 1-20 -->
+  <rect x="267" y="151" width="466" height="365" rx="12" fill="#245b45" stroke="#123d2b" stroke-width="3"/>
+  <rect x="430" y="130" width="140" height="25" rx="5" fill="#8b949e" stroke="#59636e" stroke-width="2"/>
+  <text x="500" y="147" font-family="Arial" font-size="12" text-anchor="middle" fill="#ffffff">USB</text>
+  <text x="500" y="187" font-family="Arial" font-size="23" font-weight="bold" text-anchor="middle" fill="#ffffff">RASPBERRY PI PICO</text>
+  <text x="500" y="211" font-family="Arial" font-size="13" text-anchor="middle" fill="#d9eee2">pin 1/40 в строке 1 · pin 20/21 в строке 20</text>
+  <rect x="300" y="225" width="22" height="280" rx="4" fill="#d7dbe0" stroke="#707b86"/>
+  <rect x="678" y="225" width="22" height="280" rx="4" fill="#d7dbe0" stroke="#707b86"/>
+  <text x="311" y="243" font-family="Arial" font-size="12" text-anchor="middle" fill="#1f2937">C</text>
+  <text x="689" y="243" font-family="Arial" font-size="12" text-anchor="middle" fill="#1f2937">H</text>
+  <!-- Left pins exact rows -->
+  <circle cx="311" cy="477" r="7" fill="#d97706" stroke="#7c4a03" stroke-width="2"/>
+  <circle cx="311" cy="494" r="7" fill="#16a34a" stroke="#075b2a" stroke-width="2"/>
+  <text x="145" y="476" font-family="Arial" font-size="15" font-weight="bold" fill="#9a6700">GP14 · pin 19 · кнопка 2</text>
+  <path d="M145 482 H280 L304 477" fill="none" stroke="#d97706" stroke-width="3"/>
+  <text x="145" y="514" font-family="Arial" font-size="15" font-weight="bold" fill="#087443">GP15 · pin 20 · кнопка 1</text>
+  <path d="M145 520 H280 L304 494" fill="none" stroke="#16a34a" stroke-width="3"/>
+  <!-- Right pins: row 8, 10, 12, 18 -->
+  <circle cx="689" cy="284" r="7" fill="#8b5cf6" stroke="#4c1d95" stroke-width="2"/>
+  <circle cx="689" cy="318" r="7" fill="#2563eb" stroke="#1e40af" stroke-width="2"/>
+  <circle cx="689" cy="352" r="7" fill="#dc2626" stroke="#7f1d1d" stroke-width="2"/>
+  <circle cx="689" cy="454" r="7" fill="#475569" stroke="#1f2937" stroke-width="2"/>
+  <g font-family="Arial" font-size="13" fill="#273444">
+    <text x="750" y="288" fill="#6d28d9">AGND · pin 33 · row 8</text>
+    <text x="750" y="322" fill="#1d4ed8">GP26 · pin 31 · row 10</text>
+    <text x="750" y="356" fill="#b91c1c">GP22 · pin 29 · row 12</text>
+    <text x="750" y="458" fill="#334155">GND · pin 23 · row 18</text>
+  </g>
+  <!-- RC direct in free holes of same right-side rows -->
+  <path d="M700 352 H790" stroke="#dc2626" stroke-width="3"/>
+  <rect x="790" y="339" width="65" height="26" rx="5" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  <text x="822" y="356" font-family="Arial" font-size="11" text-anchor="middle" fill="#1f2937">R 1 кОм</text>
+  <path d="M855 352 V318 H700" stroke="#2563eb" stroke-width="3" fill="none"/>
+  <path d="M785 318 V386" stroke="#16a34a" stroke-width="3"/>
+  <path d="M768 386 H802 M768 397 H802" stroke="#16a34a" stroke-width="4"/>
+  <text x="810" y="389" font-family="Arial" font-size="12" fill="#087443">C 1000 мкФ</text>
+  <text x="810" y="407" font-family="Arial" font-size="11" fill="#087443">+ GP26, − AGND</text>
+  <!-- buttons and four short jumpers -->
+  <rect x="210" y="570" width="250" height="58" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="335" y="592" font-family="Arial" font-size="15" font-weight="bold" text-anchor="middle" fill="#166534">Кнопка 1 · GP15</text>
+  <text x="335" y="612" font-family="Arial" font-size="11" text-anchor="middle" fill="#14532d">короткое: OFF/ON/BLINK; длинное: BLINK</text>
+  <rect x="540" y="645" width="250" height="48" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="665" y="665" font-family="Arial" font-size="15" font-weight="bold" text-anchor="middle" fill="#92400e">Кнопка 2 · GP14</text>
+  <text x="665" y="683" font-family="Arial" font-size="11" text-anchor="middle" fill="#78350f">период LED: 1000 → 250 → 500 мс</text>
+  <path d="M311 494 C250 520 250 548 270 570" stroke="#16a34a" stroke-width="3" stroke-dasharray="7 5" fill="none"/>
+  <path d="M311 477 C420 535 520 590 555 645" stroke="#d97706" stroke-width="3" stroke-dasharray="7 5" fill="none"/>
+  <path d="M700 454 C740 500 780 530 780 570" stroke="#475569" stroke-width="2.5" stroke-dasharray="6 5" fill="none"/>
+  <text x="500" y="735" font-family="Arial" font-size="13" text-anchor="middle" fill="#475467">Кнопки остаются на GP15 и GP14; короткие перемычки идут от этих узлов и GND к кнопкам в нижней части макетки.</text>
+</svg>

@@ -12,7 +12,6 @@ void led_task_init(void)
     led_period_ms = 1000;
     led_is_on = false;
     last_toggle_us = systime_us();
-
     led_task_set_state(LED_STATE_BLINK);
 }
 
@@ -51,7 +50,7 @@ void led_task_handle(void)
         case LED_STATE_BLINK:
             if (systime_period_elapsed(
                     &last_toggle_us,
-                    ((uint64_t)led_period_ms * 1000) / 2))
+                    ((uint64_t)led_period_ms * 1000u) / 2u))
             {
                 led_is_on = !led_is_on;
                 platform_led_set(led_is_on);
@@ -96,6 +95,32 @@ void led_task_next_state(void)
         case LED_STATE_BLINK:
         default:
             led_task_set_state(LED_STATE_OFF);
+            break;
+    }
+}
+
+// Действие длительного нажатия первой кнопки.
+void led_task_blink(void)
+{
+    led_task_set_state(LED_STATE_BLINK);
+}
+
+// Вторая кнопка циклически меняет период мигания: 1000 -> 250 -> 500 -> 1000 мс.
+void led_task_next_period(void)
+{
+    switch (led_period_ms)
+    {
+        case 250:
+            (void)led_task_set_period_ms(500);
+            break;
+
+        case 500:
+            (void)led_task_set_period_ms(1000);
+            break;
+
+        case 1000:
+        default:
+            (void)led_task_set_period_ms(250);
             break;
     }
 }

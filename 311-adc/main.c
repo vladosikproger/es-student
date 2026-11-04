@@ -32,7 +32,11 @@ int main(void)
 
     stdio_text_protocol_init();
     led_task_init();
-    button_task_init(led_task_next_state);
+    // Первая кнопка: GP15. Короткое нажатие меняет состояние LED,
+    // удержание дольше 1 секунды принудительно включает мигание.
+    button_task_init(PLATFORM_BUTTON_1, led_task_next_state, led_task_blink);
+    // Вторая кнопка: GP14. Короткое нажатие меняет период мигания.
+    button_task_init(PLATFORM_BUTTON_2, led_task_next_period, NULL);
     pi_task_init();
     telemetry_task_init(api_print_telemetry);
 
