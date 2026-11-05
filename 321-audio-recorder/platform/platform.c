@@ -121,12 +121,7 @@ bool platform_blink_start(uint32_t period_ms)
 
     // Отрицательный период означает отсчёт от начала прошлого callback:
     // интервалы между началами вызовов остаются привязанными к сетке времени.
-    blink_running = add_repeating_timer_ms(
-        -(int32_t)period_ms,
-        on_blink,
-        NULL,
-        &blink_timer
-    );
+    blink_running = add_repeating_timer_ms(-(int32_t)period_ms, on_blink, NULL, &blink_timer);
 
     return blink_running;
 }
