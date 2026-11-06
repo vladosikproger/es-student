@@ -31,3 +31,29 @@ bool platform_blink_start(uint32_t period_ms);
 
 // Останавливает мигание, гасит светодиод и возвращает число переключений.
 uint32_t platform_blink_stop(void);
+
+// Максимальное количество отсчётов в одном захвате по будильнику.
+#define PLATFORM_CAPTURE_MAX 2000
+
+// Занят ли АЦП захватом по будильнику.
+bool platform_adc_busy(void);
+
+// Захват count отсчётов GP26 по будильнику с периодом period_us.
+// false — АЦП занят или параметры не позволяют начать захват.
+bool platform_capture_start(uint32_t count, uint32_t period_us);
+
+// true, если захват запускали и все отсчёты уже набраны.
+bool platform_capture_done(void);
+
+typedef struct
+{
+    const uint16_t *samples;
+    uint32_t count;
+    uint32_t period_us;
+    uint32_t min_interval_us;
+    uint32_t max_interval_us;
+    float handler_percent;
+} platform_capture_t;
+
+// Заполняет структуру результатами последнего завершённого захвата.
+void platform_capture_get(platform_capture_t *capture);
