@@ -1,5 +1,6 @@
 #include "platform/platform.h"
 #include "pico/stdlib.h"
+#include "pico/stdio.h"
 #include "hardware/adc.h"
 #include "hardware/dma.h"
 #include "hardware/irq.h"
@@ -32,6 +33,7 @@ typedef enum
     ADC_FREE,
     ADC_CAPTURE,
     ADC_BLOCK,
+    ADC_STREAM,
 } adc_user_t;
 
 static volatile adc_user_t adc_user;
@@ -43,6 +45,14 @@ static uint16_t block_samples[PLATFORM_BLOCK_MAX];
 static uint32_t block_start_us;
 static volatile uint32_t block_end_us;
 static volatile bool block_ready;
+
+// Два канала DMA по очереди заполняют два буфера потока.
+static int stream_channels[2];
+static uint8_t stream_buffers[2][PLATFORM_STREAM_BYTES] __attribute__((aligned(4)));
+static volatile bool stream_ready[2];
+static volatile uint32_t stream_overruns;
+static uint32_t stream_samples;
+static uint32_t stream_next;
 
 // Возвращает АЦП в режим одиночных измерений, используемый get_voltage,
 // get_temp и телеметрией.
@@ -63,6 +73,30 @@ static void on_block_done(void)
     adc_one_shot();
     block_ready = true;
     adc_user = ADC_FREE;
+}
+
+// Обработчик DMA_IRQ_0: канал закончил буфер; следующий канал уже запущен
+// аппаратной цепочкой CHAIN_TO. Здесь нельзя печатать или отправлять кадры.
+static void on_stream_buffer(void)
+{
+    for (int i = 0; i < 2; ++i)
+    {
+        if (dma_channel_get_irq0_status((uint)stream_channels[i]))
+        {
+            dma_channel_acknowledge_irq0((uint)stream_channels[i]);
+
+            // DMA дошёл до конца массива; при следующем запуске писать с начала.
+            dma_channel_set_write_addr((uint)stream_channels[i], stream_buffers[i], false);
+
+            // Пока этот канал работал, следующий буфер должен был быть отправлен.
+            // Если он всё ещё готов, DMA сейчас начнёт перезаписывать неотправленные данные.
+            if (stream_ready[(i + 1) % 2])
+            {
+                stream_overruns++;
+            }
+            stream_ready[i] = true;
+        }
+    }
 }
 
 void platform_init(void)
@@ -96,6 +130,13 @@ void platform_init(void)
     dma_channel_set_irq1_enabled(block_channel, true);
     irq_set_exclusive_handler(DMA_IRQ_1, on_block_done);
     irq_set_enabled(DMA_IRQ_1, true);
+
+    // Два канала потока сообщают о завершении буферов через DMA_IRQ_0.
+    // Их прерывания на уровне каналов разрешаются только при stream_start.
+    stream_channels[0] = (int)dma_claim_unused_channel(true);
+    stream_channels[1] = (int)dma_claim_unused_channel(true);
+    irq_set_exclusive_handler(DMA_IRQ_0, on_stream_buffer);
+    irq_set_enabled(DMA_IRQ_0, true);
 }
 
 void platform_led_set(bool on)
@@ -356,4 +397,121 @@ void platform_capture_get(platform_capture_t *capture)
     {
         capture->handler_percent = 100.0f * (float)handler_us / (float)elapsed_us;
     }
+}
+
+bool platform_stream_start(uint8_t bits)
+{
+    // Дополнительная разрядность 8 бит появится в п3.2.7д.
+    if (adc_user != ADC_FREE || bits != 16U)
+    {
+        return false;
+    }
+
+    stream_samples = PLATFORM_STREAM_BYTES / 2U;
+    stream_next = 0U;
+    stream_overruns = 0U;
+
+    adc_free_running();
+
+    // Каждый канал пишет в свой буфер, а по окончании запускает соседний.
+    for (int i = 0; i < 2; ++i)
+    {
+        const uint next_channel = (uint)stream_channels[(i + 1) % 2];
+        const uint channel = (uint)stream_channels[i];
+
+        dma_channel_config cfg = dma_channel_get_default_config(channel);
+        channel_config_set_transfer_data_size(&cfg, DMA_SIZE_16);
+        channel_config_set_read_increment(&cfg, false);
+        channel_config_set_write_increment(&cfg, true);
+        channel_config_set_dreq(&cfg, DREQ_ADC);
+        channel_config_set_chain_to(&cfg, next_channel);
+
+        dma_channel_configure(channel,
+                              &cfg,
+                              stream_buffers[i],
+                              &adc_hw->fifo,
+                              stream_samples,
+                              false);
+        dma_channel_acknowledge_irq0(channel);
+        dma_channel_set_irq0_enabled(channel, true);
+        stream_ready[i] = false;
+    }
+
+    adc_user = ADC_STREAM;
+    // Канал 0 первым начинает ждать DREQ от FIFO; затем включаем конвейер АЦП.
+    dma_channel_start((uint)stream_channels[0]);
+    adc_run(true);
+    return true;
+}
+
+void platform_stream_stop(void)
+{
+    if (adc_user != ADC_STREAM)
+    {
+        return;
+    }
+
+    // Сначала прекращаем новые преобразования АЦП.
+    adc_run(false);
+
+    // Важно разорвать CHAIN_TO до abort. Из-за RP2040-E13 передача,
+    // уже находившаяся в полёте, может завершиться и запустить соседний канал.
+    // Самозацепление не даёт остановке одного канала повторно взвести другой.
+    for (int i = 0; i < 2; ++i)
+    {
+        const uint channel = (uint)stream_channels[i];
+        dma_channel_config cfg = dma_get_channel_config(channel);
+        channel_config_set_chain_to(&cfg, channel);
+        dma_channel_set_config(channel, &cfg, false);
+    }
+
+    for (int i = 0; i < 2; ++i)
+    {
+        const uint channel = (uint)stream_channels[i];
+        dma_channel_set_irq0_enabled(channel, false);
+        dma_channel_abort(channel);
+        dma_channel_acknowledge_irq0(channel);
+    }
+
+    adc_one_shot();
+    adc_user = ADC_FREE;
+}
+
+const uint8_t *platform_stream_next(uint32_t *samples)
+{
+    if (samples == NULL)
+    {
+        return NULL;
+    }
+
+    *samples = 0U;
+    if (!stream_ready[stream_next])
+    {
+        return NULL;
+    }
+
+    *samples = stream_samples;
+    return stream_buffers[stream_next];
+}
+
+void platform_stream_release(void)
+{
+    stream_ready[stream_next] = false;
+    stream_next = (stream_next + 1U) % 2U;
+}
+
+uint32_t platform_stream_overruns(void)
+{
+    return stream_overruns;
+}
+
+void platform_write(const void *data, uint32_t bytes)
+{
+    if (data == NULL || bytes == 0U)
+    {
+        return;
+    }
+
+    // Оба флага false: не добавлять перевод строки и не заменять LF на CRLF.
+    stdio_put_string((const char *)data, (int)bytes, false, false);
 }

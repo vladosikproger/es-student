@@ -13,6 +13,7 @@
 #include "pi-task/pi-task.h"
 #include "telemetry-task/telemetry-task.h"
 #include "block-task/block-task.h"
+#include "stream-task/stream-task.h"
 
 // Требуемый тестом 2.3.5 перечисляемый тип с номерами секундомеров
 typedef enum {
@@ -22,6 +23,7 @@ typedef enum {
     STOPWATCH_BUTTON,
     STOPWATCH_PI,
     STOPWATCH_TELEMETRY,
+    STOPWATCH_STREAM,
     STOPWATCH_COUNT
 } stopwatch_id_t;
 
@@ -40,6 +42,7 @@ int main(void)
     button_task_init(PLATFORM_BUTTON_2, led_task_next_period, NULL);
     pi_task_init();
     telemetry_task_init(api_print_telemetry);
+    stream_task_init(api_send_frame);
 
     profiling_init();
 
@@ -50,6 +53,7 @@ int main(void)
     profiling_stopwatch_init(STOPWATCH_BUTTON, "button");
     profiling_stopwatch_init(STOPWATCH_PI,     "pi");
     profiling_stopwatch_init(STOPWATCH_TELEMETRY, "telemetry");
+    profiling_stopwatch_init(STOPWATCH_STREAM, "stream");
 
     while (true) {
         profiling_start(STOPWATCH_LOOP);
@@ -78,6 +82,10 @@ int main(void)
         profiling_stop(STOPWATCH_TELEMETRY);
 
         block_task_handle();
+
+        profiling_start(STOPWATCH_STREAM);
+        stream_task_handle();
+        profiling_stop(STOPWATCH_STREAM);
 
         profiling_stop(STOPWATCH_LOOP);
     }

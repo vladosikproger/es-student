@@ -14,6 +14,7 @@
 #include "pi-task/pi-task.h"
 #include "telemetry-task/telemetry-task.h"
 #include "block-task/block-task.h"
+#include "stream-task/stream-task.h"
 #include "platform/platform.h"
 
 #include "device/device.h"
@@ -488,6 +489,72 @@ static void cmd_dma_cap(const command_t *cmd)
     }
 }
 
+// Передаёт заголовок и полезные данные как есть, байт за байтом.
+// printf/fwrite здесь использовать нельзя: стандартный текстовый вывод может
+// заменить байт LF (0x0a) парой CRLF и повредить двоичный кадр.
+void api_send_frame(const stream_header_t *header, const uint8_t *data, uint32_t bytes)
+{
+    if (header == NULL || data == NULL || bytes == 0U)
+    {
+        return;
+    }
+
+    platform_write(header, sizeof(*header));
+    platform_write(data, bytes);
+}
+
+#define STREAM_BLINK_PERIOD_MS 250U
+
+static void cmd_stream_start(const command_t *cmd)
+{
+    uint32_t requested_bits = 16U;
+
+    if (cmd->argc > 1
+        || (cmd->argc == 1
+            && (!parse_u32(cmd->argv[0], &requested_bits)
+                || (requested_bits != 8U && requested_bits != 16U))))
+    {
+        printf("error: usage stream_start [8|16]\n");
+        return;
+    }
+
+    if (telemetry_task_get_state() != TELEMETRY_STATE_IDLE
+        || !stream_task_start((uint8_t)requested_bits))
+    {
+        printf("error: adc busy\n");
+        return;
+    }
+
+    // На время потока GPIO25 принадлежит callback таймера, а не LED-задаче.
+    if (!platform_blink_start(STREAM_BLINK_PERIOD_MS))
+    {
+        stream_task_stop();
+        printf("error: blink timer unavailable\n");
+        return;
+    }
+    led_task_set_state(LED_STATE_OFF);
+
+    printf("stream: started, %u Hz, %lu bit\n",
+           (unsigned)PLATFORM_SAMPLE_RATE_HZ,
+           (unsigned long)requested_bits);
+}
+
+static void cmd_stream_stop(const command_t *cmd)
+{
+    (void)cmd;
+
+    if (stream_task_get_state() == STREAM_STATE_RUN)
+    {
+        stream_task_stop();
+        (void)platform_blink_stop();
+    }
+
+    printf("stream: stopped, %lu frames, %lu samples, %lu overruns\n",
+           (unsigned long)stream_task_get_frames(),
+           (unsigned long)stream_task_get_samples(),
+           (unsigned long)stream_task_get_overruns());
+}
+
 static void cmd_timer_blink_start(const command_t *cmd)
 {
     uint32_t period_ms;
@@ -542,7 +609,9 @@ const api_command_t api_commands[] =
     { "timer_blink_stop",  "stop timer blink, number of toggles", cmd_timer_blink_stop },
     { "cap_start",         "capture GP26 by timer: cap_start <N> <period_us>", cmd_cap_start },
     { "cap_dump",          "print last timer capture", cmd_cap_dump },
-    { "dma_cap",           "capture a block using ADC and DMA: dma_cap <N>", cmd_dma_cap }
+    { "dma_cap",           "capture a block using ADC and DMA: dma_cap <N>", cmd_dma_cap },
+    { "stream_start",      "start continuous ADC stream [8|16]", cmd_stream_start },
+    { "stream_stop",       "stop continuous ADC stream", cmd_stream_stop }
 };
 
 const uint32_t api_command_count =

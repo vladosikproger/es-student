@@ -72,3 +72,22 @@ const uint16_t *platform_block_samples(void);
 
 // Время от запуска АЦП до завершения переноса последнего отсчёта, мкс.
 uint32_t platform_block_time_us(void);
+
+// Непрерывный поток: два DMA-буфера по 1024 байта работают по очереди.
+// На этом этапе поддерживаются 16-битные отсчёты.
+#define PLATFORM_STREAM_BYTES 1024
+bool platform_stream_start(uint8_t bits);
+void platform_stream_stop(void);
+
+// Возвращает следующий готовый буфер по порядку или NULL.
+// При успехе записывает число отсчётов в *samples.
+const uint8_t *platform_stream_next(uint32_t *samples);
+
+// Вызывается после отправки текущего буфера: теперь его можно заполнять снова.
+void platform_stream_release(void);
+
+// Число случаев, когда DMA вернулся к буферу, который ещё не был отправлен.
+uint32_t platform_stream_overruns(void);
+
+// Передать байты в USB/UART без преобразования LF (0x0a) в CRLF.
+void platform_write(const void *data, uint32_t bytes);
