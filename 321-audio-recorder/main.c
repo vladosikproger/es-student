@@ -12,6 +12,7 @@
 #include "button-task/button-task.h"
 #include "pi-task/pi-task.h"
 #include "telemetry-task/telemetry-task.h"
+#include "block-task/block-task.h"
 
 // Требуемый тестом 2.3.5 перечисляемый тип с номерами секундомеров
 typedef enum {
@@ -75,6 +76,8 @@ int main(void)
         profiling_start(STOPWATCH_TELEMETRY);
         telemetry_task_handle();
         profiling_stop(STOPWATCH_TELEMETRY);
+
+        block_task_handle();
 
         profiling_stop(STOPWATCH_LOOP);
     }

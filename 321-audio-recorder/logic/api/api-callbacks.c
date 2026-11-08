@@ -13,6 +13,7 @@
 #include "led-task/led-task.h"
 #include "pi-task/pi-task.h"
 #include "telemetry-task/telemetry-task.h"
+#include "block-task/block-task.h"
 #include "platform/platform.h"
 
 #include "device/device.h"
@@ -422,6 +423,71 @@ static void cmd_cap_dump(const command_t *cmd)
     }
 }
 
+
+static void print_dma_cap(const uint16_t *samples, uint32_t count, uint32_t time_us)
+{
+    if (samples == NULL || count == 0U)
+    {
+        return;
+    }
+
+    uint16_t min_value = UINT16_MAX;
+    uint16_t max_value = 0U;
+    uint64_t sum = 0U;
+
+    for (uint32_t i = 0U; i < count; ++i)
+    {
+        const uint16_t value = samples[i];
+        if (value < min_value)
+        {
+            min_value = value;
+        }
+        if (value > max_value)
+        {
+            max_value = value;
+        }
+        sum += value;
+    }
+
+    // Сначала расширяем count до uint64_t, чтобы умножение не переполнилось.
+    const uint64_t expected_us =
+        (uint64_t)count * 1000000ULL / PLATFORM_SAMPLE_RATE_HZ;
+    const double mean_value = (double)sum / (double)count;
+
+    printf("dma_cap: %lu samples in %lu us, expected %llu us, min %u max %u mean %.1f\n",
+           (unsigned long)count,
+           (unsigned long)time_us,
+           (unsigned long long)expected_us,
+           (unsigned)min_value,
+           (unsigned)max_value,
+           mean_value);
+}
+
+static void cmd_dma_cap(const command_t *cmd)
+{
+    uint32_t count;
+
+    if (cmd->argc != 1 || !parse_u32(cmd->argv[0], &count))
+    {
+        printf("error: usage dma_cap <N>\n");
+        return;
+    }
+
+    if (count == 0U || count > PLATFORM_BLOCK_MAX)
+    {
+        printf("error: N must be 1..8192\n");
+        return;
+    }
+
+    // Телеметрия и захват блока используют один и тот же аппаратный АЦП.
+    if (telemetry_task_get_state() != TELEMETRY_STATE_IDLE
+        || !block_task_start(count, print_dma_cap))
+    {
+        printf("error: adc busy\n");
+        return;
+    }
+}
+
 static void cmd_timer_blink_start(const command_t *cmd)
 {
     uint32_t period_ms;
@@ -475,7 +541,8 @@ const api_command_t api_commands[] =
     { "timer_blink_start", "blink LED by timer: timer_blink_start <period_ms>", cmd_timer_blink_start },
     { "timer_blink_stop",  "stop timer blink, number of toggles", cmd_timer_blink_stop },
     { "cap_start",         "capture GP26 by timer: cap_start <N> <period_us>", cmd_cap_start },
-    { "cap_dump",          "print last timer capture", cmd_cap_dump }
+    { "cap_dump",          "print last timer capture", cmd_cap_dump },
+    { "dma_cap",           "capture a block using ADC and DMA: dma_cap <N>", cmd_dma_cap }
 };
 
 const uint32_t api_command_count =

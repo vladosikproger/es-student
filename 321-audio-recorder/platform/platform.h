@@ -57,3 +57,18 @@ typedef struct
 
 // Заполняет структуру результатами последнего завершённого захвата.
 void platform_capture_get(platform_capture_t *capture);
+
+// Частота отсчётов АЦП для блока и будущего аудиопотока.
+#define PLATFORM_SAMPLE_RATE_HZ 44100
+
+// Максимальное число отсчётов в одном блоке DMA.
+#define PLATFORM_BLOCK_MAX 8192
+
+// Захват count отсчётов GP26 через DMA; о завершении сообщает прерывание.
+// false — АЦП занят, count равен нулю или превышает PLATFORM_BLOCK_MAX.
+bool platform_block_start(uint32_t count);
+bool platform_block_done(void);
+const uint16_t *platform_block_samples(void);
+
+// Время от запуска АЦП до завершения переноса последнего отсчёта, мкс.
+uint32_t platform_block_time_us(void);

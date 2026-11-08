@@ -1,6 +1,8 @@
 #include "platform/platform.h"
 #include "pico/stdlib.h"
 #include "hardware/adc.h"
+#include "hardware/dma.h"
+#include "hardware/irq.h"
 #include "pico/time.h"
 
 #include <stddef.h>
@@ -24,6 +26,45 @@ static const uint32_t button_pins[PLATFORM_BUTTON_COUNT] =
     BUTTON_2_PIN
 };
 
+// Кто сейчас пользуется единственным блоком АЦП RP2040.
+typedef enum
+{
+    ADC_FREE,
+    ADC_CAPTURE,
+    ADC_BLOCK,
+} adc_user_t;
+
+static volatile adc_user_t adc_user;
+
+#define ADC_CLOCK_HZ 48000000.0f
+
+static int block_channel;
+static uint16_t block_samples[PLATFORM_BLOCK_MAX];
+static uint32_t block_start_us;
+static volatile uint32_t block_end_us;
+static volatile bool block_ready;
+
+// Возвращает АЦП в режим одиночных измерений, используемый get_voltage,
+// get_temp и телеметрией.
+static void adc_one_shot(void)
+{
+    adc_run(false);
+    adc_fifo_drain();
+    adc_fifo_setup(false, false, 0, false, false);
+    adc_set_clkdiv(0);
+}
+
+// Обработчик DMA_IRQ_1: DMA перенёс последний отсчёт блока в RAM.
+// Здесь выполняются только короткие действия; массив обрабатывается в logic.
+static void on_block_done(void)
+{
+    dma_channel_acknowledge_irq1(block_channel);
+    block_end_us = time_us_32();
+    adc_one_shot();
+    block_ready = true;
+    adc_user = ADC_FREE;
+}
+
 void platform_init(void)
 {
     stdio_init_all();
@@ -41,7 +82,7 @@ void platform_init(void)
         gpio_pull_up(button_pins[i]);
     }
 
-    // GP22 управляет RC-цепью. Безопасное начальное состояние — LOW.
+    // GP22 — оставшийся вывод прежней RC-практики; безопасное начальное состояние LOW.
     gpio_init(CHARGE_PIN);
     gpio_set_dir(CHARGE_PIN, GPIO_OUT);
     gpio_put(CHARGE_PIN, 0);
@@ -49,6 +90,12 @@ void platform_init(void)
     adc_init();
     adc_gpio_init(ADC_PIN);
     adc_set_temp_sensor_enabled(true);
+
+    // Канал блока использует DMA_IRQ_1; DMA_IRQ_0 остаётся для следующего задания.
+    block_channel = dma_claim_unused_channel(true);
+    dma_channel_set_irq1_enabled(block_channel, true);
+    irq_set_exclusive_handler(DMA_IRQ_1, on_block_done);
+    irq_set_enabled(DMA_IRQ_1, true);
 }
 
 void platform_led_set(bool on)
@@ -141,14 +188,57 @@ uint32_t platform_blink_stop(void)
 
 
 
-// Кто сейчас пользуется единственным блоком АЦП RP2040.
-typedef enum
-{
-    ADC_FREE,
-    ADC_CAPTURE,
-} adc_user_t;
 
-static volatile adc_user_t adc_user;
+// АЦП самостоятельно выполняет преобразования с частотой 44 100 Гц.
+// Каждый готовый результат помещается в FIFO и запрашивает перенос DMA.
+static void adc_free_running(void)
+{
+    adc_select_input(ADC_CHANNEL);
+    adc_fifo_setup(true, true, 1, false, false);
+    adc_set_clkdiv(ADC_CLOCK_HZ / PLATFORM_SAMPLE_RATE_HZ - 1);
+}
+
+bool platform_block_start(uint32_t count)
+{
+    if (adc_user != ADC_FREE || count == 0U || count > PLATFORM_BLOCK_MAX)
+    {
+        return false;
+    }
+
+    adc_free_running();
+
+    // DMA читает всегда один адрес FIFO и записывает в следующий элемент массива.
+    dma_channel_config cfg = dma_channel_get_default_config(block_channel);
+    channel_config_set_transfer_data_size(&cfg, DMA_SIZE_16);
+    channel_config_set_read_increment(&cfg, false);
+    channel_config_set_write_increment(&cfg, true);
+    channel_config_set_dreq(&cfg, DREQ_ADC);
+
+    block_ready = false;
+    adc_user = ADC_BLOCK;
+
+    // Настраиваем и запускаем DMA. Он ждёт DREQ от FIFO АЦП.
+    dma_channel_configure(block_channel, &cfg, block_samples, &adc_hw->fifo, count, true);
+    block_start_us = time_us_32();
+    adc_run(true);
+
+    return true;
+}
+
+bool platform_block_done(void)
+{
+    return block_ready;
+}
+
+const uint16_t *platform_block_samples(void)
+{
+    return block_samples;
+}
+
+uint32_t platform_block_time_us(void)
+{
+    return block_end_us - block_start_us;
+}
 
 // Состояние одного конечного захвата. Массивы статические:
 // обработчик не выделяет память и не кладёт большой буфер на стек.

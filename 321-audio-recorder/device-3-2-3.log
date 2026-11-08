@@ -1,0 +1,64 @@
+задание: 3.2.3
+проект: 321-audio-recorder
+устройство: 2e8a:000a
+серийный номер: 5303284730B4A41C
+порт: COM3
+начало: 2026-11-08T14:27:38
+   0.000 --> 
+   0.553 --> help
+   0.555 <-- help
+   0.555 <-- help             list of commands
+   0.555 <-- info             device passport
+   0.555 <-- uptime           system uptime in ms
+   0.555 <-- led_enable       turn LED on
+   0.555 <-- led_disable      turn LED off
+   0.555 <-- led_blink        blink LED
+   0.555 <-- led_period       set LED blink period in ms
+   0.556 <-- button           button state and press count
+   0.556 <-- get_voltage      voltage on GP26, ADC input 0
+   0.556 <-- get_temp         chip temperature, degrees Celsius
+   0.556 <-- charge_on        set GP22 high; charge RC capacitor
+   0.556 <-- charge_off       set GP22 low; discharge RC capacitor
+   0.556 <-- tm_start         start telemetry stream [period_ms]
+   0.556 <-- tm_stop          stop telemetry stream
+   0.556 <-- pi_start         start Pi calculation
+   0.556 <-- pi               get Pi status or result
+   0.556 <-- profiling        print profiling statistics
+   0.556 <-- profiling_reset  reset profiling statistics
+   0.557 <-- timer_blink_start blink LED by timer: timer_blink_start <period_ms>
+   0.557 <-- timer_blink_stop stop timer blink, number of toggles
+   0.557 <-- cap_start        capture GP26 by timer: cap_start <N> <period_us>
+   0.557 <-- cap_dump         print last timer capture
+   0.613 <-- dma_cap          capture a block using ADC and DMA: dma_cap <N>
+   1.610 --> info
+   1.673 <-- info
+   1.673 <-- name: es-recorder
+   1.673 <-- version: 1.0.0
+   1.673 <-- project: 321-audio-recorder
+   1.673 <-- repo: https://github.com/vladosikproger/es-student
+   1.673 <-- board: pico
+   1.673 <-- serial: 5303284730B4A41C
+   1.673 <-- chip: manufacturer 0x927, part 0x0002, revision 2
+   1.673 <-- pico-sdk: 2.3.0
+   2.612 --> dma_cap 1000
+   2.675 <-- dma_cap 1000
+   2.675 <-- dma_cap: 1000 samples in 22675 us, expected 22675 us, min 636 max 949 mean 936.9
+   3.174 --> dma_cap 4410
+   3.237 <-- dma_cap 4410
+   3.300 <-- dma_cap: 4410 samples in 99996 us, expected 100000 us, min 672 max 950 mean 938.3
+   3.675 --> dma_cap 8192
+   3.737 <-- dma_cap 8192
+   3.922 <-- dma_cap: 8192 samples in 185757 us, expected 185759 us, min 708 max 950 mean 938.8
+   4.238 --> uptime
+   4.301 <-- uptime
+   4.301 <-- uptime: 20301 ms
+   4.739 --> dma_cap 0
+   4.800 <-- dma_cap 0
+   4.801 <-- error: N must be 1..8192
+   5.241 --> dma_cap 9000
+   5.304 <-- dma_cap 9000
+   5.304 <-- error: N must be 1..8192
+   5.742 --> dma_cap
+   5.804 <-- dma_cap
+   5.804 <-- error: usage dma_cap <N>
+итог: отправлено кадров 10, принято строк 47
