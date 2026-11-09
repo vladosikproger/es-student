@@ -13,6 +13,14 @@ typedef enum
 } platform_button_t;
 
 void platform_init(void);
+
+// Сторожевой таймер RP2040. Таймаут: 1..8388 мс.
+bool platform_watchdog_enable(uint32_t timeout_ms);
+void platform_watchdog_feed(void);
+
+// Возвращает true, если последний сброс вызвал сторожевой таймер.
+// Число последовательных watchdog-сбросов записывается в *restarts.
+bool platform_watchdog_caused_reset(uint32_t *restarts);
 void platform_led_set(bool on);
 
 // Возвращает true, когда указанная кнопка нажата.

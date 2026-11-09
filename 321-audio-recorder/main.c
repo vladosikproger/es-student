@@ -60,7 +60,7 @@ int main(void)
 
         profiling_start(STOPWATCH_COMMAND);
         const command_t *command = stdio_text_protocol_handle();
-        if (command != NULL) { 
+        if (command != NULL) {
             api_handle(command);
         }
         profiling_stop(STOPWATCH_COMMAND);
@@ -86,6 +86,10 @@ int main(void)
         profiling_start(STOPWATCH_STREAM);
         stream_task_handle();
         profiling_stop(STOPWATCH_STREAM);
+
+        // Кормим watchdog только после завершения ВСЕХ задач.
+        // Если любая задача зависнет, выполнение сюда не дойдёт и плата сбросится.
+        platform_watchdog_feed();
 
         profiling_stop(STOPWATCH_LOOP);
     }

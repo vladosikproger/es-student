@@ -612,6 +612,50 @@ static void cmd_timer_blink_stop(const command_t *cmd)
     printf("timer_blink: stopped, %lu toggles\n", (unsigned long)toggles);
 }
 
+static void cmd_wdt_enable(const command_t *cmd)
+{
+    uint32_t timeout_ms;
+
+    if (cmd->argc != 1 || !parse_u32(cmd->argv[0], &timeout_ms))
+    {
+        printf("error: usage wdt_enable <timeout_ms>\n");
+        return;
+    }
+
+    if (!platform_watchdog_enable(timeout_ms))
+    {
+        printf("error: timeout_ms must be 1..8388\n");
+        return;
+    }
+
+    printf("wdt: enabled, timeout %lu ms\n", (unsigned long)timeout_ms);
+}
+
+static void cmd_hang(const command_t *cmd)
+{
+    (void)cmd;
+
+    printf("hang: superloop stopped\n");
+
+    // Намеренно блокируем суперцикл. Таймерные IRQ продолжают работать,
+    // но watchdog больше не обновляется и через timeout_ms перезапустит RP2040.
+    while (1)
+    {
+    }
+}
+
+static void cmd_reset_reason(const command_t *cmd)
+{
+    (void)cmd;
+
+    uint32_t restarts = 0U;
+    const bool caused_by_watchdog = platform_watchdog_caused_reset(&restarts);
+
+    printf("reset: %s, restarts %lu\n",
+           caused_by_watchdog ? "watchdog" : "other",
+           (unsigned long)restarts);
+}
+
 const api_command_t api_commands[] =
 {
     { "info",            "device passport",                 cmd_info },
@@ -638,7 +682,10 @@ const api_command_t api_commands[] =
     { "dma_cap",           "capture a block using ADC and DMA: dma_cap <N>", cmd_dma_cap },
     { "generate_tone",     "generate a PWM test tone on GP20: generate_tone <Hz>", cmd_generate_tone },
     { "stream_start",      "start continuous ADC stream [8|16]", cmd_stream_start },
-    { "stream_stop",       "stop continuous ADC stream", cmd_stream_stop }
+    { "stream_stop",       "stop continuous ADC stream", cmd_stream_stop },
+    { "wdt_enable",        "enable watchdog: wdt_enable <timeout_ms>", cmd_wdt_enable },
+    { "hang",              "intentionally stop the superloop", cmd_hang },
+    { "reset_reason",      "show last reset cause and watchdog restart count", cmd_reset_reason }
 };
 
 const uint32_t api_command_count =

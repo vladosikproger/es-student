@@ -6,9 +6,17 @@
 #include "hardware/dma.h"
 #include "hardware/irq.h"
 #include "hardware/pwm.h"
+#include "hardware/watchdog.h"
 #include "pico/time.h"
 
 #include <stddef.h>
+
+// Максимальный допустимый таймаут RP2040 с учётом errata RP2040-E1.
+#define WATCHDOG_MAX_MS 8388U
+
+// Причина и число последовательных watchdog-сбросов текущего запуска.
+static bool watchdog_reset;
+static uint32_t watchdog_restarts;
 
 #define LED_PIN 25
 #define BUTTON_1_PIN 15
@@ -109,6 +117,22 @@ static void on_stream_buffer(void)
 
 void platform_init(void)
 {
+    // Это должно быть самым первым действием: SDK-функция проверяет маркер
+    // предыдущего запуска watchdog до того, как новый код что-либо изменит.
+    watchdog_reset = watchdog_enable_caused_reboot();
+
+    // Scratch[0] переживает watchdog-сброс, поэтому хранит число таких
+    // перезапусков подряд. Любой другой вид сброса начинает серию заново.
+    if (watchdog_reset)
+    {
+        watchdog_hw->scratch[0]++;
+    }
+    else
+    {
+        watchdog_hw->scratch[0] = 0U;
+    }
+    watchdog_restarts = watchdog_hw->scratch[0];
+
     stdio_init_all();
 
     gpio_init(LED_PIN);
@@ -156,6 +180,32 @@ void platform_init(void)
     stream_channels[1] = (int)dma_claim_unused_channel(true);
     irq_set_exclusive_handler(DMA_IRQ_0, on_stream_buffer);
     irq_set_enabled(DMA_IRQ_0, true);
+}
+
+bool platform_watchdog_enable(uint32_t timeout_ms)
+{
+    if (timeout_ms == 0U || timeout_ms > WATCHDOG_MAX_MS)
+    {
+        return false;
+    }
+
+    // true: не отсчитывать таймаут, пока ядро остановлено отладчиком.
+    watchdog_enable(timeout_ms, true);
+    return true;
+}
+
+void platform_watchdog_feed(void)
+{
+    watchdog_update();
+}
+
+bool platform_watchdog_caused_reset(uint32_t *restarts)
+{
+    if (restarts != NULL)
+    {
+        *restarts = watchdog_restarts;
+    }
+    return watchdog_reset;
 }
 
 void platform_led_set(bool on)
