@@ -464,6 +464,32 @@ static void print_dma_cap(const uint16_t *samples, uint32_t count, uint32_t time
            mean_value);
 }
 
+static void cmd_generate_tone(const command_t *cmd)
+{
+    uint32_t freq_hz;
+
+    if (cmd->argc != 1 || !parse_u32(cmd->argv[0], &freq_hz))
+    {
+        printf("error: usage generate_tone <Hz>\n");
+        return;
+    }
+
+    if (!platform_tone_set(freq_hz))
+    {
+        printf("error: Hz must be 0 or 20..20000\n");
+        return;
+    }
+
+    if (freq_hz == 0U)
+    {
+        printf("tone: off\n");
+    }
+    else
+    {
+        printf("tone: %lu Hz\n", (unsigned long)freq_hz);
+    }
+}
+
 static void cmd_dma_cap(const command_t *cmd)
 {
     uint32_t count;
@@ -610,6 +636,7 @@ const api_command_t api_commands[] =
     { "cap_start",         "capture GP26 by timer: cap_start <N> <period_us>", cmd_cap_start },
     { "cap_dump",          "print last timer capture", cmd_cap_dump },
     { "dma_cap",           "capture a block using ADC and DMA: dma_cap <N>", cmd_dma_cap },
+    { "generate_tone",     "generate a PWM test tone on GP20: generate_tone <Hz>", cmd_generate_tone },
     { "stream_start",      "start continuous ADC stream [8|16]", cmd_stream_start },
     { "stream_stop",       "stop continuous ADC stream", cmd_stream_stop }
 };

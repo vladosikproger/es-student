@@ -25,6 +25,11 @@ float platform_temp_read(void);
 // true — GP22 ≈ 3,3 В (заряд), false — GP22 ≈ 0 В (разряд).
 void platform_charge_set(bool on);
 
+// Генератор испытательного тона на GP20 (PWM).
+// 0 выключает сигнал; допустимые частоты: 20..20000 Гц.
+// false означает недопустимую частоту.
+bool platform_tone_set(uint32_t freq_hz);
+
 // Таймерный индикатор записи.
 // false — период вне диапазона 10..60000 мс или будильник не удалось создать.
 bool platform_blink_start(uint32_t period_ms);

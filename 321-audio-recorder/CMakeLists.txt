@@ -28,6 +28,7 @@ target_link_libraries(platform PRIVATE
     pico_stdlib
     hardware_adc
     hardware_dma
+    hardware_pwm
 )
 
 # Логика прибора: задачи и команды, без SDK

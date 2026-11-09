@@ -2,8 +2,10 @@
 #include "pico/stdlib.h"
 #include "pico/stdio.h"
 #include "hardware/adc.h"
+#include "hardware/clocks.h"
 #include "hardware/dma.h"
 #include "hardware/irq.h"
+#include "hardware/pwm.h"
 #include "pico/time.h"
 
 #include <stddef.h>
@@ -12,6 +14,12 @@
 #define BUTTON_1_PIN 15
 #define BUTTON_2_PIN 14
 #define CHARGE_PIN 22
+
+// GP20 — физическая ножка 26, выход A блока PWM slice 2.
+#define TONE_PIN 20
+// Блок PWM считает с частотой 1 MHz: один отсчёт счётчика равен 1 мкс.
+#define TONE_COUNT_HZ 1000000U
+static uint tone_slice;
 
 #define ADC_PIN 26
 #define ADC_CHANNEL 0
@@ -121,6 +129,17 @@ void platform_init(void)
     gpio_set_dir(CHARGE_PIN, GPIO_OUT);
     gpio_put(CHARGE_PIN, 0);
 
+    // GP20 передаём аппаратному PWM. Делитель настраивает счётчик на 1 MHz.
+    // При TOP=0 и CC=0 выход остаётся в нуле до первой команды generate_tone.
+    gpio_set_function(TONE_PIN, GPIO_FUNC_PWM);
+    tone_slice = pwm_gpio_to_slice_num(TONE_PIN);
+    const float tone_clk_divider =
+        (float)clock_get_hz(clk_sys) / (float)TONE_COUNT_HZ;
+    pwm_set_clkdiv(tone_slice, tone_clk_divider);
+    pwm_set_wrap(tone_slice, 0U);
+    pwm_set_gpio_level(TONE_PIN, 0U);
+    pwm_set_enabled(tone_slice, true);
+
     adc_init();
     adc_gpio_init(ADC_PIN);
     adc_set_temp_sensor_enabled(true);
@@ -171,6 +190,43 @@ float platform_temp_read(void)
 void platform_charge_set(bool on)
 {
     gpio_put(CHARGE_PIN, on);
+}
+
+bool platform_tone_set(uint32_t freq_hz)
+{
+    // CC=0 даёт постоянный LOW. Сам блок PWM остаётся включённым,
+    // поэтому следующая нота запускается простой записью новых параметров.
+    if (freq_hz == 0U)
+    {
+        pwm_set_gpio_level(TONE_PIN, 0U);
+        return true;
+    }
+
+    if (freq_hz < 20U || freq_hz > 20000U)
+    {
+        return false;
+    }
+
+    // Счётчик работает с шагом 1 мкс. Округляем период до ближайшего
+    // целого числа отсчётов, чтобы минимизировать ошибку частоты.
+    const uint32_t period_us =
+        (TONE_COUNT_HZ + freq_hz / 2U) / freq_hz;
+
+    // PWM TOP — 16-битный. Для 20..20000 Hz период лежит в диапазоне
+    // 50..50000 мкс и заведомо помещается в счётчик.
+    if (period_us < 2U || period_us > ((uint32_t)UINT16_MAX + 1U))
+    {
+        return false;
+    }
+
+    // Период счётчика равен TOP+1, а CC задаёт время HIGH.
+    // При CC около половины периода получаем меандр с заполнением ~50 %.
+    // TOP и CC у RP2040 буферизованы и применяются на границе периода:
+    // переключение ноты не обрезает импульс, который уже начался.
+    pwm_set_wrap(tone_slice, (uint16_t)(period_us - 1U));
+    pwm_set_gpio_level(TONE_PIN, (uint16_t)(period_us / 2U));
+
+    return true;
 }
 
 // Объект должен жить всё время, пока SDK обслуживает повторяющийся будильник.
