@@ -57,6 +57,7 @@ target_link_libraries(logic PRIVATE
     device
     profiling
     systime
+    m
 )
 
 # Главная программа

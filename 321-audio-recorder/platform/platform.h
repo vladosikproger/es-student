@@ -28,6 +28,8 @@ void platform_led_set(bool on);
 bool platform_button_read(platform_button_t button);
 
 float platform_voltage_read(void);
+// Переводит код АЦП (в том числе дробное среднее) в вольты.
+float platform_adc_volts(float code);
 float platform_temp_read(void);
 
 // true — GP22 ≈ 3,3 В (заряд), false — GP22 ≈ 0 В (разряд).

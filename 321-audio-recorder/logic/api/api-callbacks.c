@@ -2,6 +2,7 @@
 #include "api/api.h"
 
 #include <errno.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -49,6 +50,39 @@ static bool parse_u32(const char *text, uint32_t *out_value)
     }
 
     *out_value = (uint32_t)value;
+    return true;
+}
+
+// Разбирает любое неотрицательное десятичное число. При переполнении
+// насыщает результат до UINT64_MAX: команда всё равно отклонит такое окно
+// по допустимому числу отсчётов, а не перепутает его с неверным форматом.
+static bool parse_u64_decimal(const char *text, uint64_t *out_value)
+{
+    if (text == NULL || text[0] == '\0' || out_value == NULL)
+    {
+        return false;
+    }
+
+    uint64_t value = 0U;
+    for (const char *p = text; *p != '\0'; ++p)
+    {
+        if (*p < '0' || *p > '9')
+        {
+            return false;
+        }
+
+        const uint64_t digit = (uint64_t)(*p - '0');
+        if (value > (UINT64_MAX - digit) / 10U)
+        {
+            value = UINT64_MAX;
+        }
+        else if (value != UINT64_MAX)
+        {
+            value = value * 10U + digit;
+        }
+    }
+
+    *out_value = value;
     return true;
 }
 
@@ -490,6 +524,20 @@ static void cmd_generate_tone(const command_t *cmd)
     }
 }
 
+// Общий запуск блока для dma_cap, mic_bias и mic_level.
+// Задача block-task сама дождётся DMA и вызовет нужную функцию результата.
+static bool start_block(uint32_t count, block_task_callback_t callback)
+{
+    if (telemetry_task_get_state() != TELEMETRY_STATE_IDLE
+        || !block_task_start(count, callback))
+    {
+        printf("error: adc busy\n");
+        return false;
+    }
+
+    return true;
+}
+
 static void cmd_dma_cap(const command_t *cmd)
 {
     uint32_t count;
@@ -506,13 +554,131 @@ static void cmd_dma_cap(const command_t *cmd)
         return;
     }
 
-    // Телеметрия и захват блока используют один и тот же аппаратный АЦП.
-    if (telemetry_task_get_state() != TELEMETRY_STATE_IDLE
-        || !block_task_start(count, print_dma_cap))
+    (void)start_block(count, print_dma_cap);
+}
+
+// Статистика считается в целых кодах АЦП: Cortex-M0+ не имеет FPU,
+// поэтому вычисления с float внутри циклов были бы заметно медленнее.
+static void block_stats(const uint16_t *samples,
+                        uint32_t count,
+                        float *mean,
+                        float *rms,
+                        float *peak)
+{
+    uint32_t sum = 0U;
+    for (uint32_t i = 0U; i < count; ++i)
     {
-        printf("error: adc busy\n");
+        sum += samples[i];
+    }
+
+    const int32_t center = (int32_t)(sum / count);
+    uint64_t squares = 0U;
+    uint32_t largest = 0U;
+
+    for (uint32_t i = 0U; i < count; ++i)
+    {
+        const int32_t deviation = (int32_t)samples[i] - center;
+        const uint32_t size = (uint32_t)(deviation < 0 ? -deviation : deviation);
+        squares += (uint64_t)(deviation * deviation);
+        if (size > largest)
+        {
+            largest = size;
+        }
+    }
+
+    *mean = (float)sum / (float)count;
+    *rms = sqrtf((float)squares / (float)count);
+    *peak = (float)largest;
+}
+
+static void print_mic_bias(const uint16_t *samples, uint32_t count, uint32_t time_us)
+{
+    (void)time_us;
+    if (samples == NULL || count == 0U)
+    {
         return;
     }
+
+    float mean;
+    float rms;
+    float peak;
+    block_stats(samples, count, &mean, &rms, &peak);
+    (void)rms;
+    (void)peak;
+
+    printf("mic: bias %.3f V\n", (double)platform_adc_volts(mean));
+}
+
+static void print_mic_level(const uint16_t *samples, uint32_t count, uint32_t time_us)
+{
+    (void)time_us;
+    if (samples == NULL || count == 0U)
+    {
+        return;
+    }
+
+    float mean;
+    float rms;
+    float peak;
+    block_stats(samples, count, &mean, &rms, &peak);
+    (void)mean;
+
+    const float rms_mv = platform_adc_volts(rms) * 1000.0f;
+    const float peak_mv = platform_adc_volts(peak) * 1000.0f;
+    const uint64_t window_ms =
+        ((uint64_t)count * 1000U + PLATFORM_SAMPLE_RATE_HZ / 2U)
+        / PLATFORM_SAMPLE_RATE_HZ;
+
+    printf("mic: level %.1f mV rms, peak %.1f mV, %llu ms\n",
+           (double)rms_mv,
+           (double)peak_mv,
+           (unsigned long long)window_ms);
+}
+
+static void cmd_mic_bias(const command_t *cmd)
+{
+    if (cmd->argc != 0)
+    {
+        printf("error: usage mic_bias\n");
+        return;
+    }
+
+    (void)start_block(4410U, print_mic_bias);
+}
+
+#define MIC_DEFAULT_WINDOW_MS 100U
+
+static void cmd_mic_level(const command_t *cmd)
+{
+    uint64_t ms = MIC_DEFAULT_WINDOW_MS;
+
+    if (cmd->argc > 1
+        || (cmd->argc == 1 && !parse_u64_decimal(cmd->argv[0], &ms)))
+    {
+        printf("error: usage mic_level [<ms>]\n");
+        return;
+    }
+
+    // Умножение выполняется в uint64_t. При очень большом аргументе
+    // не допускаем переполнение, а затем выдаём ошибку диапазона окна.
+    uint64_t count64;
+    const uint64_t rate = PLATFORM_SAMPLE_RATE_HZ;
+    if (ms > (UINT64_MAX - 500U) / rate)
+    {
+        count64 = UINT64_MAX;
+    }
+    else
+    {
+        count64 = (ms * rate + 500U) / 1000U;
+    }
+
+    if (count64 == 0U || count64 > PLATFORM_BLOCK_MAX)
+    {
+        printf("error: ms must be 1..185\n");
+        return;
+    }
+
+    (void)start_block((uint32_t)count64, print_mic_level);
 }
 
 // Передаёт заголовок и полезные данные как есть, байт за байтом.
@@ -680,6 +846,8 @@ const api_command_t api_commands[] =
     { "cap_start",         "capture GP26 by timer: cap_start <N> <period_us>", cmd_cap_start },
     { "cap_dump",          "print last timer capture", cmd_cap_dump },
     { "dma_cap",           "capture a block using ADC and DMA: dma_cap <N>", cmd_dma_cap },
+    { "mic_bias",           "measure microphone DC bias", cmd_mic_bias },
+    { "mic_level",          "measure microphone level [<ms>]", cmd_mic_level },
     { "generate_tone",     "generate a PWM test tone on GP20: generate_tone <Hz>", cmd_generate_tone },
     { "stream_start",      "start continuous ADC stream [8|16]", cmd_stream_start },
     { "stream_stop",       "stop continuous ADC stream", cmd_stream_stop },

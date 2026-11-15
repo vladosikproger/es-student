@@ -1,0 +1,70 @@
+задание: 3.2.7
+проект: 321-audio-recorder
+устройство: 2e8a:000a
+серийный номер: 5303284730B4A41C
+порт: COM3
+начало: 2026-11-15T17:01:21
+   0.000 --> 
+   0.245 <-- mic: level 5.9 mV rms, peak 22.6 mV, 185 ms
+   0.559 --> help
+   0.560 <-- help
+   0.560 <-- help             list of commands
+   0.560 <-- info             device passport
+   0.560 <-- uptime           system uptime in ms
+   0.560 <-- led_enable       turn LED on
+   0.560 <-- led_disable      turn LED off
+   0.560 <-- led_blink        blink LED
+   0.560 <-- led_period       set LED blink period in ms
+   0.560 <-- button           button state and press count
+   0.560 <-- get_voltage      voltage on GP26, ADC input 0
+   0.560 <-- get_temp         chip temperature, degrees Celsius
+   0.561 <-- charge_on        set GP22 high; charge RC capacitor
+   0.561 <-- charge_off       set GP22 low; discharge RC capacitor
+   0.561 <-- tm_start         start telemetry stream [period_ms]
+   0.561 <-- tm_stop          stop telemetry stream
+   0.561 <-- pi_start         start Pi calculation
+   0.561 <-- pi               get Pi status or result
+   0.561 <-- profiling        print profiling statistics
+   0.561 <-- profiling_reset  reset profiling statistics
+   0.562 <-- timer_blink_start blink LED by timer: timer_blink_start <period_ms>
+   0.562 <-- timer_blink_stop stop timer blink, number of toggles
+   0.562 <-- cap_start        capture GP26 by timer: cap_start <N> <period_us>
+   0.562 <-- cap_dump         print last timer capture
+   0.562 <-- dma_cap          capture a block using ADC and DMA: dma_cap <N>
+   0.562 <-- mic_bias         measure microphone DC bias
+   0.562 <-- mic_level        measure microphone level [<ms>]
+   0.562 <-- generate_tone    generate a PWM test tone on GP20: generate_tone <Hz>
+   0.622 <-- stream_start     start continuous ADC stream [8|16]
+   0.622 <-- stream_stop      stop continuous ADC stream
+   0.622 <-- wdt_enable       enable watchdog: wdt_enable <timeout_ms>
+   0.622 <-- hang             intentionally stop the superloop
+   0.622 <-- reset_reason     show last reset cause and watchdog restart count
+   1.619 --> info
+   1.680 <-- info
+   1.680 <-- name: es-recorder
+   1.680 <-- version: 1.0.0
+   1.680 <-- project: 321-audio-recorder
+   1.680 <-- repo: https://github.com/vladosikproger/es-student
+   1.680 <-- board: pico
+   1.680 <-- serial: 5303284730B4A41C
+   1.680 <-- chip: manufacturer 0x927, part 0x0002, revision 2
+   1.680 <-- pico-sdk: 2.3.0
+   2.622 --> mic_bias
+   2.684 <-- mic_bias
+   2.747 <-- mic: bias 1.249 V
+   3.128 --> mic_level
+   3.191 <-- mic_level
+   3.254 <-- mic: level 5.5 mV rms, peak 21.8 mV, 100 ms
+   3.633 --> mic_level 50
+   3.695 <-- mic_level 50
+   3.695 <-- mic: level 5.3 mV rms, peak 20.1 mV, 50 ms
+   4.135 --> mic_level 185
+   4.198 <-- mic_level 185
+   4.323 <-- mic: level 5.4 mV rms, peak 20.1 mV, 185 ms
+   4.635 --> mic_level 0
+   4.697 <-- mic_level 0
+   4.698 <-- error: ms must be 1..185
+   5.136 --> mic_level 200
+   5.197 <-- mic_level 200
+   5.198 <-- error: ms must be 1..185
+итог: отправлено кадров 9, принято строк 54
