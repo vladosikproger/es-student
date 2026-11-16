@@ -89,7 +89,7 @@ const uint16_t *platform_block_samples(void);
 uint32_t platform_block_time_us(void);
 
 // Непрерывный поток: два DMA-буфера по 1024 байта работают по очереди.
-// На этом этапе поддерживаются 16-битные отсчёты.
+// bits = 8: 1024 отсчёта в буфере; bits = 16: 512 отсчётов.
 #define PLATFORM_STREAM_BYTES 1024
 bool platform_stream_start(uint8_t bits);
 void platform_stream_stop(void);

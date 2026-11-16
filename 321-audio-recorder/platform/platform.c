@@ -343,10 +343,12 @@ uint32_t platform_blink_stop(void)
 
 // АЦП самостоятельно выполняет преобразования с частотой 44 100 Гц.
 // Каждый готовый результат помещается в FIFO и запрашивает перенос DMA.
-static void adc_free_running(void)
+static void adc_free_running(bool bits8)
 {
     adc_select_input(ADC_CHANNEL);
-    adc_fifo_setup(true, true, 1, false, false);
+    // В режиме 8 бит АЦП сам сдвигает 12-битный результат на 4 разряда вправо.
+    // В FIFO сразу попадают старшие 8 бит; процессору не нужно их обрабатывать.
+    adc_fifo_setup(true, true, 1, false, bits8);
     adc_set_clkdiv(ADC_CLOCK_HZ / PLATFORM_SAMPLE_RATE_HZ - 1);
 }
 
@@ -357,7 +359,7 @@ bool platform_block_start(uint32_t count)
         return false;
     }
 
-    adc_free_running();
+    adc_free_running(false);
 
     // DMA читает всегда один адрес FIFO и записывает в следующий элемент массива.
     dma_channel_config cfg = dma_channel_get_default_config(block_channel);
@@ -512,17 +514,19 @@ void platform_capture_get(platform_capture_t *capture)
 
 bool platform_stream_start(uint8_t bits)
 {
-    // Дополнительная разрядность 8 бит появится в п3.2.7д.
-    if (adc_user != ADC_FREE || bits != 16U)
+    if (adc_user != ADC_FREE || (bits != 8U && bits != 16U))
     {
         return false;
     }
 
-    stream_samples = PLATFORM_STREAM_BYTES / 2U;
+    // Размер каждого буфера остаётся 1024 байта: при 8 битах это 1024 отсчёта,
+    // при 16 битах — 512 отсчётов.
+    const uint32_t bytes_per_sample = (bits == 8U) ? 1U : 2U;
+    stream_samples = PLATFORM_STREAM_BYTES / bytes_per_sample;
     stream_next = 0U;
     stream_overruns = 0U;
 
-    adc_free_running();
+    adc_free_running(bits == 8U);
 
     // Каждый канал пишет в свой буфер, а по окончании запускает соседний.
     for (int i = 0; i < 2; ++i)
@@ -531,7 +535,8 @@ bool platform_stream_start(uint8_t bits)
         const uint channel = (uint)stream_channels[i];
 
         dma_channel_config cfg = dma_channel_get_default_config(channel);
-        channel_config_set_transfer_data_size(&cfg, DMA_SIZE_16);
+        channel_config_set_transfer_data_size(
+            &cfg, (bits == 8U) ? DMA_SIZE_8 : DMA_SIZE_16);
         channel_config_set_read_increment(&cfg, false);
         channel_config_set_write_increment(&cfg, true);
         channel_config_set_dreq(&cfg, DREQ_ADC);

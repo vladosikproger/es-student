@@ -28,7 +28,7 @@ typedef void (*stream_task_callback_t)(const stream_header_t *header,
 void stream_task_init(stream_task_callback_t on_frame);
 void stream_task_handle(void);
 
-// bits — 16 или 8; на этапе п3.2.4 платформа поддерживает только 16 бит.
+// bits — 8 или 16; число отсчётов и размер кадра зависят от разрядности.
 bool stream_task_start(uint8_t bits);
 void stream_task_stop(void);
 
