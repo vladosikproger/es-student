@@ -1,5 +1,6 @@
 #include "api/api-commands.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -9,6 +10,7 @@
 
 #include "button-task/button-task.h"
 #include "edge-task/edge-task.h"
+#include "uart-task/uart-task.h"
 #include "firmware.h"
 #include "led-task/led-task.h"
 #include "pi-task/pi-task.h"
@@ -283,6 +285,79 @@ static void cmd_edge(const command_t *cmd)
     }
 }
 
+// У RX есть место для 32 байтов; читаем их после окончания передачи.
+#define ECHO_TEXT_MAX 32u
+
+static void print_bytes(const uint8_t *data, size_t size)
+{
+    for (size_t i = 0; i < size; ++i)
+    {
+        const unsigned char byte = data[i];
+        putchar(isprint(byte) ? byte : '.');
+    }
+}
+
+static void print_errors(uint32_t errors)
+{
+    printf("err:");
+    if (errors == 0)
+    {
+        printf(" none");
+        return;
+    }
+    if (errors & PLATFORM_UART_FE) printf(" FE");
+    if (errors & PLATFORM_UART_PE) printf(" PE");
+    if (errors & PLATFORM_UART_BE) printf(" BE");
+    if (errors & PLATFORM_UART_OE) printf(" OE");
+}
+
+static void print_echo(const uint8_t *data, size_t size, uint32_t errors)
+{
+    printf("rx: ");
+    print_bytes(data, size);
+    putchar(' ');
+    print_errors(errors);
+    putchar('\n');
+}
+
+static void cmd_loop(const command_t *cmd)
+{
+    bool internal;
+    if (cmd->argc == 1 && strcmp(cmd->argv[0], "internal") == 0)
+        internal = true;
+    else if (cmd->argc == 1 && strcmp(cmd->argv[0], "pins") == 0)
+        internal = false;
+    else
+    {
+        printf("error: usage loop internal|pins\n");
+        return;
+    }
+
+    platform_uart_loop_set(internal);
+    printf("loop: %s\n", cmd->argv[0]);
+}
+
+static void cmd_echo(const command_t *cmd)
+{
+    if (cmd->argc != 1)
+    {
+        printf("error: usage echo <text>\n");
+        return;
+    }
+
+    const size_t size = strlen(cmd->argv[0]);
+    if (size > ECHO_TEXT_MAX)
+    {
+        printf("error: text longer than 32\n");
+        return;
+    }
+    if (!uart_task_start(PLATFORM_UART0, PLATFORM_UART0,
+                         (const uint8_t *)cmd->argv[0], size, print_echo))
+    {
+        printf("error: uart is busy\n");
+    }
+}
+
 const api_command_t api_commands[] =
 {
     { "info",            "device passport",                 cmd_info },
@@ -296,7 +371,9 @@ const api_command_t api_commands[] =
     { "led_blink",       "blink LED",                       cmd_led_blink },
     { "led_period",      "set LED blink period in ms",      cmd_led_period },
     { "button",          "button state and press count",    cmd_button },
-    { "edge", "rise and fall of the RC line: edge pp|od", cmd_edge }
+    { "edge", "rise and fall of the RC line: edge pp|od", cmd_edge },
+    { "loop", "UART0 loopback: loop internal|pins", cmd_loop },
+    { "echo", "text through UART0 and back: echo <text>", cmd_echo }
 };
 
 const uint32_t api_command_count =
