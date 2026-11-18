@@ -15,7 +15,13 @@
 #define UART0_TX_PIN 0
 #define UART0_RX_PIN 1
 
+#define UART1_TX_PIN 8
+#define UART1_RX_PIN 9
+
 #define UART_BAUD 115200
+
+// У каждого приёмника свой итог, чтобы ошибка раннего байта не потерялась.
+static uint32_t rx_errors[2];
 
 static uart_inst_t *uart_of(platform_uart_t uart)
 {
@@ -43,6 +49,11 @@ void platform_init(void)
     // делитель, формат 8N1, очереди, включение модуля
     uart_init(uart0, UART_BAUD);
     platform_uart_loop_set(false);
+
+    // uart_init включает FIFO и 8N1. Выводы UART1 всегда ведут наружу.
+    uart_init(uart1, UART_BAUD);
+    gpio_set_function(UART1_TX_PIN, GPIO_FUNC_UART);
+    gpio_set_function(UART1_RX_PIN, GPIO_FUNC_UART);
 }
 
 void platform_led_set(bool on)
@@ -104,6 +115,7 @@ void platform_uart_clear(platform_uart_t uart)
 
     // запись в UARTECR сбрасывает признаки ошибок
     uart_get_hw(u)->rsr = 0;
+    rx_errors[uart] = 0;
 }
 
 bool platform_uart_put(platform_uart_t uart, uint8_t byte)
@@ -132,7 +144,10 @@ size_t platform_uart_read(platform_uart_t uart, uint8_t *data, size_t size)
 
     while (uart_is_readable(u) && n < size)
     {
-        data[n++] = uart_get_hw(u)->dr & 0xff;
+        // Одно чтение DR вынимает один элемент FIFO: байт и его признаки.
+        uint32_t sample = uart_get_hw(u)->dr;
+        data[n++] = (uint8_t)(sample & UART_UARTDR_DATA_BITS);
+        rx_errors[uart] |= (sample >> UART_UARTDR_FE_LSB) & UART_UARTRSR_BITS;
     }
 
     return n;
@@ -140,5 +155,21 @@ size_t platform_uart_read(platform_uart_t uart, uint8_t *data, size_t size)
 
 uint32_t platform_uart_errors(platform_uart_t uart)
 {
-    return uart_get_hw(uart_of(uart))->rsr & 0xf;
+    return rx_errors[uart] | (uart_get_hw(uart_of(uart))->rsr & UART_UARTRSR_BITS);
+}
+
+uint32_t platform_uart_baud_set(platform_uart_t uart, uint32_t baud)
+{
+    return uart_set_baudrate(uart_of(uart), baud);
+}
+
+void platform_uart_parity_set(platform_uart_t uart, platform_parity_t parity)
+{
+    static const uart_parity_t parities[] = {
+        UART_PARITY_NONE,
+        UART_PARITY_EVEN,
+        UART_PARITY_ODD,
+    };
+
+    uart_set_format(uart_of(uart), 8, 1, parities[parity]);
 }

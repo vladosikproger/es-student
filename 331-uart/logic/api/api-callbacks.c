@@ -311,13 +311,35 @@ static void print_errors(uint32_t errors)
     if (errors & PLATFORM_UART_OE) printf(" OE");
 }
 
-static void print_echo(const uint8_t *data, size_t size, uint32_t errors)
+// Пока USB-команда ждёт ответа (для link — и обратного), не меняем связь.
+static bool uart_command_pending;
+
+static void note_start(bool accepted)
 {
-    printf("rx: ");
+    if (accepted) uart_command_pending = true;
+    else puts("error: uart is busy");
+}
+
+static bool may_reconfigure_uart(void)
+{
+    if (!uart_command_pending) return true;
+    puts("error: uart is busy");
+    return false;
+}
+
+static void print_received(const uint8_t *data, size_t size, uint32_t errors)
+{
     print_bytes(data, size);
     putchar(' ');
     print_errors(errors);
     putchar('\n');
+}
+
+static void print_echo(const uint8_t *data, size_t size, uint32_t errors)
+{
+    uart_command_pending = false;
+    printf("rx: ");
+    print_received(data, size, errors);
 }
 
 static void cmd_loop(const command_t *cmd)
@@ -333,29 +355,125 @@ static void cmd_loop(const command_t *cmd)
         return;
     }
 
+    if (!may_reconfigure_uart()) return;
     platform_uart_loop_set(internal);
     printf("loop: %s\n", cmd->argv[0]);
 }
 
-static void cmd_echo(const command_t *cmd)
+// Одна проверка для echo и link. Не передаём завершающий '\0'.
+static bool read_word(const command_t *cmd, const char *usage, size_t *size)
 {
     if (cmd->argc != 1)
     {
-        printf("error: usage echo <text>\n");
-        return;
+        puts(usage);
+        return false;
     }
+    *size = strlen(cmd->argv[0]);
+    if (*size > ECHO_TEXT_MAX)
+    {
+        puts("error: text longer than 32");
+        return false;
+    }
+    return true;
+}
 
-    const size_t size = strlen(cmd->argv[0]);
-    if (size > ECHO_TEXT_MAX)
+static void cmd_echo(const command_t *cmd)
+{
+    size_t size;
+    if (!read_word(cmd, "error: usage echo <text>", &size)) return;
+    note_start(uart_task_start(PLATFORM_UART0, PLATFORM_UART0,
+                              (const uint8_t *)cmd->argv[0], size, print_echo));
+}
+
+static const char text_line[] = "0123456789ABCDEFGHIJKLMNOPQRSTUV";
+_Static_assert(sizeof(text_line) - 1 == ECHO_TEXT_MAX, "text must fit one RX FIFO");
+#define REFERENCE_BAUD 115200u
+
+static void print_link_back(const uint8_t *data, size_t size, uint32_t errors)
+{
+    uart_command_pending = false;
+    printf("1->0: ");
+    print_received(data, size, errors);
+}
+
+static void print_link_forth(const uint8_t *data, size_t size, uint32_t errors)
+{
+    printf("0->1: ");
+    print_received(data, size, errors);
+    // uart-task уже свободна и сразу копирует именно ПРИНЯТЫЕ байты.
+    uart_command_pending = false;
+    note_start(uart_task_start(PLATFORM_UART1, PLATFORM_UART0, data, size, print_link_back));
+}
+
+static void cmd_link(const command_t *cmd)
+{
+    size_t size;
+    if (!read_word(cmd, "error: usage link <text>", &size)) return;
+    note_start(uart_task_start(PLATFORM_UART0, PLATFORM_UART1,
+                              (const uint8_t *)cmd->argv[0], size, print_link_forth));
+}
+
+static void print_text(const uint8_t *data, size_t size, uint32_t errors)
+{
+    uart_command_pending = false;
+    printf("text: %u chars ", (unsigned)size);
+    print_received(data, size, errors);
+}
+
+static void cmd_text(const command_t *cmd)
+{
+    if (cmd->argc != 0)
     {
-        printf("error: text longer than 32\n");
+        puts("error: usage text");
         return;
     }
-    if (!uart_task_start(PLATFORM_UART0, PLATFORM_UART0,
-                         (const uint8_t *)cmd->argv[0], size, print_echo))
+    note_start(uart_task_start(PLATFORM_UART1, PLATFORM_UART0,
+                              (const uint8_t *)text_line, sizeof(text_line) - 1, print_text));
+}
+
+static void cmd_baud_shift(const command_t *cmd)
+{
+    const char *arg = (cmd->argc == 1) ? cmd->argv[0] : "";
+    char *end = NULL;
+    errno = 0;
+    const long percent = strtol(arg, &end, 10);
+    if (end == arg || *end != '\0' || isspace((unsigned char)arg[0]))
     {
-        printf("error: uart is busy\n");
+        puts("error: usage baud_shift <percent>");
+        return;
     }
+    if (errno == ERANGE || percent < -50 || percent > 50)
+    {
+        puts("error: percent must be -50..50");
+        return;
+    }
+    if (!may_reconfigure_uart()) return;
+    const uint32_t requested = REFERENCE_BAUD * (uint32_t)(100 + percent) / 100u;
+    const uint32_t actual = platform_uart_baud_set(PLATFORM_UART1, requested);
+    printf("baud_shift: uart1 %lu baud\n", (unsigned long)actual);
+}
+
+static bool parse_parity(const char *word, platform_parity_t *out)
+{
+    if (strcmp(word, "none") == 0)      *out = PLATFORM_PARITY_NONE;
+    else if (strcmp(word, "even") == 0) *out = PLATFORM_PARITY_EVEN;
+    else if (strcmp(word, "odd") == 0)  *out = PLATFORM_PARITY_ODD;
+    else return false;
+    return true;
+}
+
+static void cmd_parity(const command_t *cmd)
+{
+    platform_parity_t p0, p1;
+    if (cmd->argc != 2 || !parse_parity(cmd->argv[0], &p0) || !parse_parity(cmd->argv[1], &p1))
+    {
+        puts("error: usage parity none|even|odd none|even|odd");
+        return;
+    }
+    if (!may_reconfigure_uart()) return;
+    platform_uart_parity_set(PLATFORM_UART0, p0);
+    platform_uart_parity_set(PLATFORM_UART1, p1);
+    printf("parity: uart0 %s, uart1 %s\n", cmd->argv[0], cmd->argv[1]);
 }
 
 const api_command_t api_commands[] =
@@ -373,7 +491,11 @@ const api_command_t api_commands[] =
     { "button",          "button state and press count",    cmd_button },
     { "edge", "rise and fall of the RC line: edge pp|od", cmd_edge },
     { "loop", "UART0 loopback: loop internal|pins", cmd_loop },
-    { "echo", "text through UART0 and back: echo <text>", cmd_echo }
+    { "echo", "text through UART0 and back: echo <text>", cmd_echo },
+    { "link", "text from UART0 to UART1 and back: link <text>", cmd_link },
+    { "baud_shift", "shift UART1 baud rate: baud_shift <percent>", cmd_baud_shift },
+    { "text", "32 characters from UART1 to UART0", cmd_text },
+    { "parity", "parity of UART0 and UART1: parity <rx> <tx>", cmd_parity }
 };
 
 const uint32_t api_command_count =
