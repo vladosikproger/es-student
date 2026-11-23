@@ -13,6 +13,7 @@
 #include "pi-task/pi-task.h"
 #include "edge-task/edge-task.h"
 #include "uart-task/uart-task.h"
+#include "block-task/block-task.h"
 
 // Требуемый тестом 2.3.5 перечисляемый тип с номерами секундомеров
 typedef enum {
@@ -77,6 +78,9 @@ int main(void)
         profiling_start(STOPWATCH_UART);
         uart_task_handle();
         profiling_stop(STOPWATCH_UART);
+
+        // Deliver finished DMA buffers outside the IRQ.
+        block_task_handle();
 
         profiling_stop(STOPWATCH_LOOP);
     }

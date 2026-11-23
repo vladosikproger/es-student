@@ -68,3 +68,12 @@ void platform_uart_parity_set(platform_uart_t uart, platform_parity_t parity);
 
 // Приём UART0 через аппаратное прерывание (true) или опрос FIFO (false).
 void platform_uart_rx_irq_set(bool on);
+
+// Capture UART0 TX voltage through GP26 (ADC0) at 500 ksample/s.
+#define PLATFORM_SAMPLE_RATE_HZ 500000u
+#define PLATFORM_BLOCK_MAX 4096u
+
+bool platform_block_start(uint32_t count);
+bool platform_block_done(void);
+const uint16_t *platform_block_samples(void);
+uint32_t platform_block_time_us(void);

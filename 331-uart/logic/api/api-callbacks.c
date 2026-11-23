@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "button-task/button-task.h"
+#include "block-task/block-task.h"
 #include "edge-task/edge-task.h"
 #include "uart-task/uart-task.h"
 #include "firmware.h"
@@ -529,6 +530,111 @@ static void cmd_block(const command_t *cmd)
     platform_uart_rx_irq_set(use_irq);
 }
 
+// Oscilloscope: capture GP0 from GP26 before transmitting UART0->UART1.
+#define SCOPE_SAMPLES PLATFORM_BLOCK_MAX
+#define SCOPE_BAUD_MIN 9600u
+#define SCOPE_TEXT_MAX 4u
+
+static uint32_t scope_baud;
+static uint8_t scope_rx_data[SCOPE_TEXT_MAX];
+static size_t scope_rx_size;
+static uint32_t scope_rx_errors;
+static bool scope_rx_done;
+static bool scope_capture_valid;
+
+static void print_scope_rx(const uint8_t *data, size_t size, uint32_t errors)
+{
+    // Called after uart-task's quiet period, before the 8.2 ms ADC block ends.
+    scope_rx_size = size < SCOPE_TEXT_MAX ? size : SCOPE_TEXT_MAX;
+    memcpy(scope_rx_data, data, scope_rx_size);
+    scope_rx_errors = errors;
+    scope_rx_done = true;
+}
+
+static void print_scope(const uint16_t *samples, uint32_t count, uint32_t time_us)
+{
+    (void)time_us;
+    if (!scope_capture_valid)
+    {
+        return;  // UART task did not start; failure was already reported.
+    }
+
+    // Restore normal speeds before emitting a large USB text response.
+    platform_uart_baud_set(PLATFORM_UART0, REFERENCE_BAUD);
+    platform_uart_baud_set(PLATFORM_UART1, REFERENCE_BAUD);
+
+    printf("scope: %lu samples, %lu Hz, %lu baud, uart1 ",
+           (unsigned long)count,
+           (unsigned long)PLATFORM_SAMPLE_RATE_HZ,
+           (unsigned long)scope_baud);
+    if (scope_rx_done)
+    {
+        print_bytes(scope_rx_data, scope_rx_size);
+    }
+    else
+    {
+        printf("<missing>");
+    }
+    putchar(' ');
+    print_errors(scope_rx_errors);
+    putchar('\n');
+
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        printf("%u", (unsigned)samples[i]);
+        putchar((i % 16u == 15u || i + 1u == count) ? '\n' : ' ');
+    }
+    puts("scope: end");
+    scope_capture_valid = false;
+    uart_command_pending = false;
+}
+
+static void cmd_scope(const command_t *cmd)
+{
+    uint32_t baud;
+    if (cmd->argc != 2 || !parse_u32(cmd->argv[0], &baud) ||
+        baud < SCOPE_BAUD_MIN || baud > REFERENCE_BAUD ||
+        cmd->argv[1][0] == '\0' || strlen(cmd->argv[1]) > SCOPE_TEXT_MAX)
+    {
+        puts("error: usage scope <baud> <text>");
+        return;
+    }
+
+    if (!may_reconfigure_uart()) return;
+
+    scope_baud = baud;
+    scope_rx_size = 0u;
+    scope_rx_errors = 0u;
+    scope_rx_done = false;
+    scope_capture_valid = true;
+
+    platform_uart_rx_irq_set(false);
+    platform_uart_baud_set(PLATFORM_UART0, baud);
+    platform_uart_baud_set(PLATFORM_UART1, baud);
+
+    // Starting ADC first captures idle HIGH before the UART start bit.
+    if (!block_task_start(SCOPE_SAMPLES, print_scope))
+    {
+        scope_capture_valid = false;
+        platform_uart_baud_set(PLATFORM_UART0, REFERENCE_BAUD);
+        platform_uart_baud_set(PLATFORM_UART1, REFERENCE_BAUD);
+        puts("error: adc busy");
+        return;
+    }
+
+    if (!uart_task_start(PLATFORM_UART0, PLATFORM_UART1,
+                         (const uint8_t *)cmd->argv[1],
+                         strlen(cmd->argv[1]), print_scope_rx))
+    {
+        scope_capture_valid = false;
+        platform_uart_baud_set(PLATFORM_UART0, REFERENCE_BAUD);
+        platform_uart_baud_set(PLATFORM_UART1, REFERENCE_BAUD);
+        puts("error: uart is busy");
+        return;
+    }
+    uart_command_pending = true;
+}
+
 const api_command_t api_commands[] =
 {
     { "info",            "device passport",                 cmd_info },
@@ -549,7 +655,8 @@ const api_command_t api_commands[] =
     { "baud_shift", "shift UART1 baud rate: baud_shift <percent>", cmd_baud_shift },
     { "text", "32 characters from UART1 to UART0", cmd_text },
     { "parity", "parity of UART0 and UART1: parity <rx> <tx>", cmd_parity },
-    { "block", "64 bytes from UART1 to UART0: block irq|poll", cmd_block }
+    { "block", "64 bytes from UART1 to UART0: block irq|poll", cmd_block },
+    { "scope", "UART0 line on ADC: scope <baud> <text>", cmd_scope }
 };
 
 const uint32_t api_command_count =
