@@ -2,6 +2,7 @@
 #include "pico/stdlib.h"
 #include "hardware/adc.h"
 #include "hardware/uart.h"
+#include "hardware/irq.h"
 
 #define LED_PIN 25
 #define BUTTON_PIN 15
@@ -21,7 +22,31 @@
 #define UART_BAUD 115200
 
 // У каждого приёмника свой итог, чтобы ошибка раннего байта не потерялась.
-static uint32_t rx_errors[2];
+// К признакам может обращаться обработчик прерывания UART0.
+static volatile uint32_t rx_errors[2];
+
+// Буфер длиннее аппаратной FIFO (32 байта), вмещает весь блок из 64 байтов.
+#define RX_BUFFER_SIZE 128u
+static volatile uint8_t rx_buffer[RX_BUFFER_SIZE];
+static volatile uint32_t rx_count;
+
+// Считываем все готовые элементы FIFO без ожидания новых байтов.
+static void on_uart0_rx(void)
+{
+    while (uart_is_readable(uart0))
+    {
+        const uint32_t sample = uart_get_hw(uart0)->dr;
+        // Сохраняем FE/PE/BE из байтов; OE читаем из UARTRSR.
+        rx_errors[PLATFORM_UART0] |=
+            (sample >> UART_UARTDR_FE_LSB) &
+            (PLATFORM_UART_FE | PLATFORM_UART_PE | PLATFORM_UART_BE);
+
+        if (rx_count < RX_BUFFER_SIZE)
+        {
+            rx_buffer[rx_count++] = (uint8_t)(sample & UART_UARTDR_DATA_BITS);
+        }
+    }
+}
 
 static uart_inst_t *uart_of(platform_uart_t uart)
 {
@@ -54,6 +79,10 @@ void platform_init(void)
     uart_init(uart1, UART_BAUD);
     gpio_set_function(UART1_TX_PIN, GPIO_FUNC_UART);
     gpio_set_function(UART1_RX_PIN, GPIO_FUNC_UART);
+
+    // IRQ разрешён в контроллере, но сам UART0 запросит его лишь в режиме block irq.
+    irq_set_exclusive_handler(UART0_IRQ, on_uart0_rx);
+    irq_set_enabled(UART0_IRQ, true);
 }
 
 void platform_led_set(bool on)
@@ -104,6 +133,12 @@ void platform_uart_loop_set(bool internal)
     }
 }
 
+void platform_uart_rx_irq_set(bool on)
+{
+    // SDK разрешает IRQ по уровню заполнения RX FIFO и по таймауту приёма.
+    uart_set_irqs_enabled(uart0, on, false);
+}
+
 void platform_uart_clear(platform_uart_t uart)
 {
     uart_inst_t *u = uart_of(uart);
@@ -113,9 +148,14 @@ void platform_uart_clear(platform_uart_t uart)
         (void)uart_get_hw(u)->dr;
     }
 
-    // запись в UARTECR сбрасывает признаки ошибок
+    // Очистка UARTECR: любая запись сбрасывает FE/PE/BE/OE.
+    // OE для нового блока получаем из UARTRSR (не из UARTDR).
     uart_get_hw(u)->rsr = 0;
     rx_errors[uart] = 0;
+    if (uart == PLATFORM_UART0)
+    {
+        rx_count = 0;
+    }
 }
 
 bool platform_uart_put(platform_uart_t uart, uint8_t byte)
@@ -142,12 +182,28 @@ size_t platform_uart_read(platform_uart_t uart, uint8_t *data, size_t size)
     uart_inst_t *u = uart_of(uart);
     size_t n = 0;
 
+    // При включённом IRQ байты уже извлечены из FIFO обработчиком.
+    // uart-task вызывает эту функцию, когда линия молчит 1 мс.
+    if (uart == PLATFORM_UART0)
+    {
+        const uint32_t count = rx_count;
+        while (n < count && n < size)
+        {
+            data[n] = rx_buffer[n];
+            n++;
+        }
+    }
+
+    // В режиме poll байты остаются в аппаратной FIFO.
     while (uart_is_readable(u) && n < size)
     {
         // Одно чтение DR вынимает один элемент FIFO: байт и его признаки.
         uint32_t sample = uart_get_hw(u)->dr;
         data[n++] = (uint8_t)(sample & UART_UARTDR_DATA_BITS);
-        rx_errors[uart] |= (sample >> UART_UARTDR_FE_LSB) & UART_UARTRSR_BITS;
+        // OE берём только из UARTRSR, чтобы не переносить ошибку
+        // переполнения предыдущего блока через UARTDR.
+        rx_errors[uart] |= (sample >> UART_UARTDR_FE_LSB) &
+            (PLATFORM_UART_FE | PLATFORM_UART_PE | PLATFORM_UART_BE);
     }
 
     return n;

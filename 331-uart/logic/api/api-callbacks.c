@@ -476,6 +476,59 @@ static void cmd_parity(const command_t *cmd)
     printf("parity: uart0 %s, uart1 %s\n", cmd->argv[0], cmd->argv[1]);
 }
 
+// Приём блока длиной вдвое больше аппаратной RX FIFO.
+#define BLOCK_SIZE 64u
+static uint8_t block_data[BLOCK_SIZE];
+static bool block_irq_enabled;
+
+static void print_block(const uint8_t *data, size_t size, uint32_t errors)
+{
+    // Восстанавливаем обычный опрос, чтобы не менять поведение п3.3.2–3.3.3.
+    platform_uart_rx_irq_set(false);
+    uart_command_pending = false;
+
+    const bool match = size > 0 && size <= BLOCK_SIZE &&
+                       memcmp(data, block_data, size) == 0;
+    printf("block %s: %u/64 %s, ",
+           block_irq_enabled ? "irq" : "poll",
+           (unsigned)size,
+           match ? "match" : "mismatch");
+    print_errors(errors);
+    putchar('\n');
+}
+
+static void cmd_block(const command_t *cmd)
+{
+    if (cmd->argc != 1 ||
+        (strcmp(cmd->argv[0], "irq") != 0 &&
+         strcmp(cmd->argv[0], "poll") != 0))
+    {
+        puts("error: usage block irq|poll");
+        return;
+    }
+
+    if (!may_reconfigure_uart()) return;
+
+    const bool use_irq = strcmp(cmd->argv[0], "irq") == 0;
+    for (size_t i = 0; i < BLOCK_SIZE; ++i)
+    {
+        block_data[i] = (uint8_t)i;
+    }
+
+    // После uart_task_start() приёмник будет очищен, до начала передачи.
+    platform_uart_rx_irq_set(false);
+    if (!uart_task_start(PLATFORM_UART1, PLATFORM_UART0,
+                         block_data, BLOCK_SIZE, print_block))
+    {
+        puts("error: uart is busy");
+        return;
+    }
+
+    block_irq_enabled = use_irq;
+    uart_command_pending = true;
+    platform_uart_rx_irq_set(use_irq);
+}
+
 const api_command_t api_commands[] =
 {
     { "info",            "device passport",                 cmd_info },
@@ -495,7 +548,8 @@ const api_command_t api_commands[] =
     { "link", "text from UART0 to UART1 and back: link <text>", cmd_link },
     { "baud_shift", "shift UART1 baud rate: baud_shift <percent>", cmd_baud_shift },
     { "text", "32 characters from UART1 to UART0", cmd_text },
-    { "parity", "parity of UART0 and UART1: parity <rx> <tx>", cmd_parity }
+    { "parity", "parity of UART0 and UART1: parity <rx> <tx>", cmd_parity },
+    { "block", "64 bytes from UART1 to UART0: block irq|poll", cmd_block }
 };
 
 const uint32_t api_command_count =
