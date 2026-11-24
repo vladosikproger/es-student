@@ -1,0 +1,23 @@
+задание: 4.1.1
+проект: 411-i2c-spi
+устройство: 2e8a:000a
+серийный номер: 5303284730B4A41C
+дата: 2026-11-24T20:43:02
+
+0.000 --> help
+0.130 <-- help
+0.130 <-- help             list of commands
+0.131 <-- i2c_write_reg    <address> <register> <value>
+0.131 <-- i2c_read_reg     <address> <register>
+0.131 --> i2c_read_reg 0x76 0xD0
+0.255 <-- i2c_read_reg 0x76 0xD0
+0.256 <-- i2c: addr 0x76 reg 0xD0 value 0x60
+0.256 --> i2c_write_reg 0x76 0xF5 0x08
+0.377 <-- i2c_write_reg 0x76 0xF5 0x08
+0.378 <-- i2c: addr 0x76 reg 0xF5 sent 0x08
+0.378 --> i2c_read_reg 0x76 0xF5
+0.502 <-- i2c_read_reg 0x76 0xF5
+0.503 <-- i2c: addr 0x76 reg 0xF5 value 0x08
+0.503 --> i2c_write_reg 0x76 0xF5 0x00
+0.629 <-- i2c_write_reg 0x76 0xF5 0x00
+0.629 <-- i2c: addr 0x76 reg 0xF5 sent 0x00
