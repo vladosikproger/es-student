@@ -1,12 +1,24 @@
 #include "api/api.h"
+#include "slave/slave.h"
 #include "platform/platform.h"
 #include "stdio-text-protocol/stdio-text-protocol.h"
 #include <stddef.h>
+
+// This code executes on the second Cortex-M0+ core.
+static void slave_core(void)
+{
+    slave_device_init();
+    while (1)
+    {
+        slave_device_handle();
+    }
+}
 
 int main(void)
 {
     platform_master_init();
     stdio_text_protocol_init();
+    platform_start_core1(slave_core);
 
     while (1)
     {
